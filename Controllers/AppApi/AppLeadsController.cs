@@ -53,6 +53,47 @@ public class AppLeadsController : ControllerBase
         return $"LD-{nextNum}";
     }
 
+
+        /// <summary>
+    /// Lightweight list of team members for the "Assigned To" dropdown.
+    /// Route: GET /api/v1/app/leads/assignees
+    /// Returns only id, name, email, role (no permissions or sensitive data).
+    /// </summary>
+    [HttpGet("assignees", Order = -1)]
+    [HttpGet("employees", Order = -1)]
+    public async Task<IActionResult> GetAssignees()
+    {
+        try
+        {
+            var assignees = await _db.Users
+                .AsNoTracking()
+                .Where(u => u.Name != null && u.Name != "" &&
+                            (u.Status == null || u.Status.ToLower() != "inactive"))
+                .OrderBy(u => u.Name)
+                .Select(u => new
+                {
+                    id = u.Id,
+                    name = u.Name,
+                    email = u.Email,
+                    role = u.Role
+                })
+                .ToListAsync();
+
+            return Ok(AppApiResponse<IEnumerable<object>>.Ok(
+                assignees.Cast<object>().ToList(),
+                "Assignees retrieved successfully."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve assignees.");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                AppApiErrorResponse.Fail("An error occurred while retrieving assignees."));
+        }
+    }
+
+
+
+
     /// <summary>
     /// Gets all leads formatted for app consumption.
     /// Route: GET /api/v1/app/leads

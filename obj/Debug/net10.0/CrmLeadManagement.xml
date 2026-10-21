@@ -224,6 +224,13 @@
             Base route: /api/v1/app/leads
             </summary>
         </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetAssignees">
+            <summary>
+            Lightweight list of team members for the "Assigned To" dropdown.
+            Route: GET /api/v1/app/leads/assignees
+            Returns only id, name, email, role (no permissions or sensitive data).
+            </summary>
+        </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetLeads">
             <summary>
             Gets all leads formatted for app consumption.
@@ -322,8 +329,16 @@
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.AddRequirement(System.String,CrmLeadManagement.Models.Dtos.App.AppRequirementInputDto)">
             <summary>
-            Records a new requirement against a lead.
+            Records requirement(s) against a lead.
             Route: POST /api/v1/app/leads/{id}/requirements
+            If "Items" is supplied, one RequirementEntry is created per item with distinct parameters matching the web panel.
+            Otherwise the legacy single-requirement payload is used.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.SaveRequirementImageAsync(System.String)">
+            <summary>
+            Saves a base64 image (optionally "data:image/xxx;base64,...") under uploads/requirements
+            and returns the relative URL, or "" if missing/invalid/too large.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.DeleteRequirement(System.String,System.Int32)">
@@ -972,11 +987,6 @@
             Visit entry input DTO for /api/v1/app/leads/{id}/visits.
             </summary>
         </member>
-        <member name="T:CrmLeadManagement.Models.Dtos.App.AppRequirementInputDto">
-            <summary>
-            Requirement entry input DTO for /api/v1/app/leads/{id}/requirements.
-            </summary>
-        </member>
         <member name="T:CrmLeadManagement.Models.Dtos.App.AppLeadStatsDto">
             <summary>
             Lead statistics response DTO for /api/v1/app/leads/stats.
@@ -1026,6 +1036,21 @@
             <summary>
             Wrapper for work reports response including both summary totals and paginated items.
             </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.FlexibleStringConverter">
+            <summary>Accepts both "1200" and 1200 from the mobile app and stores it as string.</summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.AppRequirementItemDto">
+            <summary>One row of the "Item Specifications" table.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppRequirementItemDto.ImageBase64">
+            <summary>Photo as base64, with or without "data:image/jpeg;base64," prefix.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppRequirementInputDto.Items">
+            <summary>New: item specification rows. Each row is saved as one RequirementEntry (same as web).</summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.AppRequirementResponseDto">
+            <summary>Response DTO returning item specifications as clean individual properties rather than squashed in Description.</summary>
         </member>
         <member name="T:CrmLeadManagement.Models.Dtos.LoginRequest">
             <summary>Request payload for POST /api/auth/login</summary>
