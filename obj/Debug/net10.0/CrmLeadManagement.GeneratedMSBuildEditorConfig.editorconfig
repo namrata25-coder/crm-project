@@ -1,0 +1,168 @@
+is_global = true
+build_property.TargetFramework = net10.0
+build_property.TargetFramework = net10.0
+build_property.TargetPlatformMinVersion = 
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v10.0
+build_property.EntryPointFilePath = 
+build_property.RootNamespace = CrmLeadManagement
+build_property.RootNamespace = CrmLeadManagement
+build_property.ProjectDir = C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 10.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 10.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Admin/Dashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWRtaW5cRGFzaGJvYXJkLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Auth/AdminLogin.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxBZG1pbkxvZ2luLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Auth/ChangePassword.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxDaGFuZ2VQYXNzd29yZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Auth/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Auth/Register.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxSZWdpc3Rlci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Auth/UserLogin.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxVc2VyTG9naW4uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/EstimationDetails.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxFc3RpbWF0aW9uRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/EstimationList.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxFc3RpbWF0aW9uTGlzdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/InvoiceDetails.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxJbnZvaWNlRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/InvoiceList.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxJbnZvaWNlTGlzdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/PaymentList.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxQYXltZW50TGlzdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/ProposalDetails.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxQcm9wb3NhbERldGFpbHMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/ProposalList.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxQcm9wb3NhbExpc3QuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/QuotationDetails.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxRdW90YXRpb25EZXRhaWxzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/QuotationList.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxRdW90YXRpb25MaXN0LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Finance/RecurringInvoiceList.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmluYW5jZVxSZWN1cnJpbmdJbnZvaWNlTGlzdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Lead/Assigned.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVhZFxBc3NpZ25lZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Lead/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVhZFxEZXRhaWxzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Lead/List.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVhZFxMaXN0LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Lead/_LeadFormModal.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVhZFxfTGVhZEZvcm1Nb2RhbC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Settings/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2V0dGluZ3NcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Shared/AccessDenied.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEFjY2Vzc0RlbmllZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Shared/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9MYXlvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Team/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGVhbVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Team/Roles.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGVhbVxSb2xlcy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/User/Dashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVXNlclxEYXNoYm9hcmQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Work/Members.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV29ya1xNZW1iZXJzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Work/Milestones.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV29ya1xNaWxlc3RvbmVzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Work/ProjectDetails.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV29ya1xQcm9qZWN0RGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Work/Projects.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV29ya1xQcm9qZWN0cy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Work/Reports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV29ya1xSZXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/Work/Tasks.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV29ya1xUYXNrcy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/admin/Downloads/deploy changes file/CrmLeadManagement/Views/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
