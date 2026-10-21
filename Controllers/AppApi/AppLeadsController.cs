@@ -107,9 +107,6 @@ public class AppLeadsController : ControllerBase
     [HttpGet("statistics", Order = -1)]
     [HttpGet("count", Order = -1)]
     [HttpGet("counts", Order = -1)]
-    [HttpGet("/api/leads/stats", Order = -1)]
-    [HttpGet("/api/leads/count", Order = -1)]
-    [HttpGet("/api/leads/counts", Order = -1)]
     public async Task<IActionResult> GetLeadStats([FromQuery] string? assignedTo)
     {
         try
@@ -458,8 +455,6 @@ public class AppLeadsController : ControllerBase
     [HttpGet("{id}/calls")]
     [HttpGet("{id}/call")]
     [HttpGet("{id}/call-details")]
-    [HttpGet("/api/leads/{id}/calls")]
-    [HttpGet("/api/leads/{id}/call-details")]
     public async Task<IActionResult> GetLeadCalls(string id)
     {
         var lead = await FindLeadAsync(id);
@@ -480,8 +475,6 @@ public class AppLeadsController : ControllerBase
     [HttpPost("{id}/calls")]
     [HttpPost("{id}/call")]
     [HttpPost("{id}/call-details")]
-    [HttpPost("/api/leads/{id}/calls")]
-    [HttpPost("/api/leads/{id}/call-details")]
     public async Task<IActionResult> AddCall(string id, [FromBody] AppCallInputDto input)
     {
         try
@@ -538,7 +531,7 @@ public class AppLeadsController : ControllerBase
     /// Route: DELETE /api/v1/app/leads/{id}/calls/{callId:int}
     /// </summary>
     [HttpDelete("{id}/calls/{callId:int}")]
-    [HttpDelete("/api/leads/{id}/calls/{callId:int}")]
+    [HttpDelete("{id}/call-details/{callId:int}")]
     public async Task<IActionResult> DeleteCall(string id, int callId)
     {
         var lead = await FindLeadAsync(id);
@@ -571,8 +564,6 @@ public class AppLeadsController : ControllerBase
     [HttpGet("{id}/followup")]
     [HttpGet("{id}/follow-ups")]
     [HttpGet("{id}/follow-up")]
-    [HttpGet("/api/leads/{id}/followups")]
-    [HttpGet("/api/leads/{id}/follow-ups")]
     public async Task<IActionResult> GetLeadFollowUps(string id)
     {
         var lead = await FindLeadAsync(id);
@@ -594,8 +585,6 @@ public class AppLeadsController : ControllerBase
     [HttpPost("{id}/followup")]
     [HttpPost("{id}/follow-ups")]
     [HttpPost("{id}/follow-up")]
-    [HttpPost("/api/leads/{id}/followups")]
-    [HttpPost("/api/leads/{id}/follow-ups")]
     public async Task<IActionResult> AddFollowUp(string id, [FromBody] AppFollowUpInputDto input)
     {
         try
@@ -653,8 +642,6 @@ public class AppLeadsController : ControllerBase
     /// </summary>
     [HttpDelete("{id}/followups/{followUpId:int}")]
     [HttpDelete("{id}/follow-ups/{followUpId:int}")]
-    [HttpDelete("/api/leads/{id}/followups/{followUpId:int}")]
-    [HttpDelete("/api/leads/{id}/follow-ups/{followUpId:int}")]
     public async Task<IActionResult> DeleteFollowUp(string id, int followUpId)
     {
         var lead = await FindLeadAsync(id);
@@ -686,8 +673,6 @@ public class AppLeadsController : ControllerBase
     [HttpGet("{id}/visits")]
     [HttpGet("{id}/visit")]
     [HttpGet("{id}/client-visits")]
-    [HttpGet("/api/leads/{id}/visits")]
-    [HttpGet("/api/leads/{id}/client-visits")]
     public async Task<IActionResult> GetLeadVisits(string id)
     {
         var lead = await FindLeadAsync(id);
@@ -708,8 +693,6 @@ public class AppLeadsController : ControllerBase
     [HttpPost("{id}/visits")]
     [HttpPost("{id}/visit")]
     [HttpPost("{id}/client-visits")]
-    [HttpPost("/api/leads/{id}/visits")]
-    [HttpPost("/api/leads/{id}/client-visits")]
     public async Task<IActionResult> AddVisit(string id, [FromBody] AppVisitInputDto input)
     {
         try
@@ -766,8 +749,6 @@ public class AppLeadsController : ControllerBase
     /// </summary>
     [HttpDelete("{id}/visits/{visitId:int}")]
     [HttpDelete("{id}/client-visits/{visitId:int}")]
-    [HttpDelete("/api/leads/{id}/visits/{visitId:int}")]
-    [HttpDelete("/api/leads/{id}/client-visits/{visitId:int}")]
     public async Task<IActionResult> DeleteVisit(string id, int visitId)
     {
         var lead = await FindLeadAsync(id);
@@ -798,7 +779,6 @@ public class AppLeadsController : ControllerBase
     /// </summary>
     [HttpGet("{id}/requirements")]
     [HttpGet("{id}/requirement")]
-    [HttpGet("/api/leads/{id}/requirements")]
     public async Task<IActionResult> GetLeadRequirements(string id)
     {
         var lead = await FindLeadAsync(id);
@@ -807,18 +787,24 @@ public class AppLeadsController : ControllerBase
             return NotFound(AppApiErrorResponse.Fail($"Lead '{id}' not found."));
         }
 
-        return Ok(AppApiResponse<List<RequirementEntry>>.Ok(
-            lead.Requirements.OrderByDescending(r => r.Id).ToList(),
+        var dtoList = lead.Requirements
+            .OrderByDescending(r => r.Id)
+            .Select(AppRequirementResponseDto.FromEntity)
+            .ToList();
+
+        return Ok(AppApiResponse<List<AppRequirementResponseDto>>.Ok(
+            dtoList,
             "Requirements retrieved successfully."));
     }
 
     /// <summary>
-    /// Records a new requirement against a lead.
+    /// Records requirement(s) against a lead.
     /// Route: POST /api/v1/app/leads/{id}/requirements
+    /// If "Items" is supplied, one RequirementEntry is created per item with distinct parameters matching the web panel.
+    /// Otherwise the legacy single-requirement payload is used.
     /// </summary>
     [HttpPost("{id}/requirements")]
     [HttpPost("{id}/requirement")]
-    [HttpPost("/api/leads/{id}/requirements")]
     public async Task<IActionResult> AddRequirement(string id, [FromBody] AppRequirementInputDto input)
     {
         try
@@ -829,14 +815,128 @@ public class AppLeadsController : ControllerBase
                 return NotFound(AppApiErrorResponse.Fail($"Lead '{id}' not found."));
             }
 
-            var entry = new RequirementEntry
+            var priority = !string.IsNullOrWhiteSpace(input?.Priority) ? input.Priority.Trim() : "Medium";
+            var status = !string.IsNullOrWhiteSpace(input?.Status) ? input.Status.Trim() : "New";
+            var expectedDate = input?.ExpectedDate?.Trim() ?? "";
+            var budget = input?.Budget?.Trim() ?? "";
+            var mainTitle = input?.Title?.Trim() ?? "";
+            var mainDescription = input?.Description?.Trim() ?? "";
+
+            // ---------- NEW: item specification rows ----------
+            var rows = input?.Items?.Where(i => i != null).ToList();
+            if (rows != null && rows.Count > 0)
+            {
+                var created = new List<RequirementEntry>();
+
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var r = rows[i];
+                    string T(string? s) => s?.Trim() ?? "";
+
+                    var cat = T(r.Category);
+                    var itm = T(r.Item);
+                    var loc = T(r.Location);
+                    var h1 = T(r.H1); var h2 = T(r.H2); var h3 = T(r.H3);
+                    var w1 = T(r.W1); var w2 = T(r.W2); var w3 = T(r.W3);
+                    var typ = T(r.Types);
+                    var gls = T(r.Glass);
+                    var top = T(r.Topology);
+                    var hasImage = !string.IsNullOrWhiteSpace(r.ImageBase64);
+
+                    // Skip completely empty rows
+                    if (new[] { cat, itm, loc, h1, h2, h3, w1, w2, w3, typ, gls, top }
+                            .All(string.IsNullOrWhiteSpace) && !hasImage)
+                    {
+                        continue;
+                    }
+
+                    string itemTitle =
+                        !string.IsNullOrWhiteSpace(mainTitle) ? mainTitle :
+                        !string.IsNullOrWhiteSpace(cat) && !string.IsNullOrWhiteSpace(itm) ? $"{cat} — {itm}" :
+                        !string.IsNullOrWhiteSpace(itm) ? itm :
+                        !string.IsNullOrWhiteSpace(cat) ? cat :
+                        $"Requirement Item #{i + 1}";
+
+                    var descParts = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(loc)) descParts.Add($"Location: {loc}");
+
+                    var hParts = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(h1)) hParts.Add($"H1: {h1}");
+                    if (!string.IsNullOrWhiteSpace(h2)) hParts.Add($"H2: {h2}");
+                    if (!string.IsNullOrWhiteSpace(h3)) hParts.Add($"H3: {h3}");
+                    if (hParts.Count > 0) descParts.Add($"Height: {string.Join(", ", hParts)}");
+
+                    var wParts = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(w1)) wParts.Add($"W1: {w1}");
+                    if (!string.IsNullOrWhiteSpace(w2)) wParts.Add($"W2: {w2}");
+                    if (!string.IsNullOrWhiteSpace(w3)) wParts.Add($"W3: {w3}");
+                    if (wParts.Count > 0) descParts.Add($"Width: {string.Join(", ", wParts)}");
+
+                    if (!string.IsNullOrWhiteSpace(typ)) descParts.Add($"Types: {typ}");
+                    if (!string.IsNullOrWhiteSpace(gls)) descParts.Add($"Glass: {gls}");
+                    if (!string.IsNullOrWhiteSpace(top)) descParts.Add($"Topology: {top}");
+
+                    var imagePath = await SaveRequirementImageAsync(r.ImageBase64);
+
+                    var entry = new RequirementEntry
+                    {
+                        Title = itemTitle,
+                        Description = mainDescription,
+                        Priority = priority,
+                        ExpectedDate = expectedDate,
+                        Budget = budget,
+                        Status = status,
+                        ImagePath = imagePath,
+
+                        // Same params as web panel
+                        Category = cat,
+                        Item = itm,
+                        Location = loc,
+                        H1 = h1,
+                        H2 = h2,
+                        H3 = h3,
+                        W1 = w1,
+                        W2 = w2,
+                        W3 = w3,
+                        Types = typ,
+                        Topology = top,
+                        Glass = gls,
+
+                        // Legacy fields
+                        ItemName = itm,
+                        RequirementType = cat,
+                        Quantity = "1",
+                        Details = string.Join(" | ", descParts),
+                        Remarks = mainDescription
+                    };
+
+                    lead.Requirements.Add(entry);
+                    created.Add(entry);
+                }
+
+                if (created.Count == 0)
+                {
+                    return BadRequest(AppApiErrorResponse.Fail("At least one item with some details is required."));
+                }
+
+                await _db.SaveChangesAsync();
+
+                var dtoList = created.Select(AppRequirementResponseDto.FromEntity).ToList();
+
+                return StatusCode(StatusCodes.Status201Created,
+                    AppApiResponse<List<AppRequirementResponseDto>>.Ok(dtoList,
+                        $"{created.Count} requirement item(s) added successfully."));
+            }
+
+            // ---------- Legacy single requirement ----------
+            var single = new RequirementEntry
             {
                 Title = input?.Title?.Trim() ?? (input?.ItemName?.Trim() ?? "New Requirement"),
                 Description = input?.Description?.Trim() ?? (input?.Details?.Trim() ?? ""),
-                Priority = !string.IsNullOrWhiteSpace(input?.Priority) ? input.Priority.Trim() : "Medium",
-                ExpectedDate = input?.ExpectedDate?.Trim() ?? "",
-                Budget = input?.Budget?.Trim() ?? "",
-                Status = !string.IsNullOrWhiteSpace(input?.Status) ? input.Status.Trim() : "New",
+                Priority = priority,
+                ExpectedDate = expectedDate,
+                Budget = budget,
+                Status = status,
                 RequirementType = input?.RequirementType?.Trim() ?? "",
                 ItemName = input?.ItemName?.Trim() ?? (input?.Title?.Trim() ?? ""),
                 Quantity = input?.Quantity?.Trim() ?? "1",
@@ -844,11 +944,13 @@ public class AppLeadsController : ControllerBase
                 Remarks = input?.Remarks?.Trim() ?? ""
             };
 
-            lead.Requirements.Add(entry);
+            lead.Requirements.Add(single);
             await _db.SaveChangesAsync();
 
+            var singleDto = AppRequirementResponseDto.FromEntity(single);
+
             return StatusCode(StatusCodes.Status201Created,
-                AppApiResponse<RequirementEntry>.Ok(entry, "Requirement added successfully."));
+                AppApiResponse<AppRequirementResponseDto>.Ok(singleDto, "Requirement added successfully."));
         }
         catch (Exception ex)
         {
@@ -859,11 +961,55 @@ public class AppLeadsController : ControllerBase
     }
 
     /// <summary>
+    /// Saves a base64 image (optionally "data:image/xxx;base64,...") under uploads/requirements
+    /// and returns the relative URL, or "" if missing/invalid/too large.
+    /// </summary>
+    private async Task<string> SaveRequirementImageAsync(string? base64Data)
+    {
+        if (string.IsNullOrWhiteSpace(base64Data)) return "";
+
+        try
+        {
+            var raw = base64Data.Trim();
+            var ext = ".jpg";
+
+            if (raw.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && raw.Contains(','))
+            {
+                var parts = raw.Split(',', 2);
+                var header = parts[0].ToLowerInvariant();
+                raw = parts[1];
+
+                if (header.Contains("image/png")) ext = ".png";
+                else if (header.Contains("image/webp")) ext = ".webp";
+                else if (header.Contains("image/gif")) ext = ".gif";
+                else ext = ".jpg";
+            }
+
+            var bytes = Convert.FromBase64String(raw);
+            if (bytes.Length == 0 || bytes.Length > 8 * 1024 * 1024) return ""; // max 8 MB
+
+            var folder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
+            Directory.CreateDirectory(folder);
+
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            await System.IO.File.WriteAllBytesAsync(Path.Combine(folder, fileName), bytes);
+
+            return $"/uploads/requirements/{fileName}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Invalid requirement image data ignored.");
+            return "";
+        }
+    }
+
+
+    
+    /// <summary>
     /// Deletes a requirement entry.
     /// Route: DELETE /api/v1/app/leads/{id}/requirements/{reqId:int}
     /// </summary>
     [HttpDelete("{id}/requirements/{reqId:int}")]
-    [HttpDelete("/api/leads/{id}/requirements/{reqId:int}")]
     public async Task<IActionResult> DeleteRequirement(string id, int reqId)
     {
         var lead = await FindLeadAsync(id);

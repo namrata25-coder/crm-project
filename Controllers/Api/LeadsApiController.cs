@@ -180,6 +180,17 @@ public class LeadsApiController : ControllerBase
         return NoContent();
     }
 
+    // GET /api/leads/{id}/calls
+    // GET /api/leads/{id}/call-details
+    [HttpGet("{id}/calls")]
+    [HttpGet("{id}/call-details")]
+    public ActionResult<IEnumerable<CallHistoryEntry>> GetCalls(string id)
+    {
+        var lead = LeadStore.GetById(id);
+        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        return Ok(lead.CallHistory.OrderByDescending(c => c.Id).ToList());
+    }
+
     // POST /api/leads/{id}/calls
     // POST /api/leads/{id}/call-details
     [HttpPost("{id}/calls")]
@@ -189,20 +200,24 @@ public class LeadsApiController : ControllerBase
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
 
-        if (string.IsNullOrWhiteSpace(request.CallDate) || string.IsNullOrWhiteSpace(request.CallTime) || string.IsNullOrWhiteSpace(request.CallStatus))
-            return BadRequest(new ApiError { Message = "CallDate, CallTime and CallStatus are required." });
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var nowTime = DateTime.UtcNow.ToString("HH:mm");
 
-        var remarkText = !string.IsNullOrWhiteSpace(request.Remark) 
+        var callDate = !string.IsNullOrWhiteSpace(request?.CallDate) ? request.CallDate.Trim() : today;
+        var callTime = !string.IsNullOrWhiteSpace(request?.CallTime) ? request.CallTime.Trim() : nowTime;
+        var callStatus = !string.IsNullOrWhiteSpace(request?.CallStatus) ? request.CallStatus.Trim() : "Connected";
+
+        var remarkText = !string.IsNullOrWhiteSpace(request?.Remark) 
             ? request.Remark 
-            : (!string.IsNullOrWhiteSpace(request.Remarks) ? request.Remarks : (request.Notes ?? ""));
+            : (!string.IsNullOrWhiteSpace(request?.Remarks) ? request.Remarks : (request?.Notes ?? ""));
 
         var newCall = new CallHistoryEntry
         {
-            CallDate = request.CallDate,
-            CallTime = request.CallTime,
-            CallType = string.IsNullOrWhiteSpace(request.CallType) ? "Outgoing" : request.CallType,
-            CallStatus = request.CallStatus,
-            Duration = request.Duration ?? "",
+            CallDate = callDate,
+            CallTime = callTime,
+            CallType = string.IsNullOrWhiteSpace(request?.CallType) ? "Outgoing" : request.CallType,
+            CallStatus = callStatus,
+            Duration = !string.IsNullOrWhiteSpace(request?.Duration) ? request.Duration.Trim() : "00:00",
             Employee = lead.AssignedTo,
             Notes = remarkText
         };
@@ -224,6 +239,17 @@ public class LeadsApiController : ControllerBase
         });
     }
 
+    // GET /api/leads/{id}/followups
+    // GET /api/leads/{id}/follow-ups
+    [HttpGet("{id}/followups")]
+    [HttpGet("{id}/follow-ups")]
+    public ActionResult<IEnumerable<FollowUpEntry>> GetFollowUps(string id)
+    {
+        var lead = LeadStore.GetById(id);
+        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        return Ok(lead.FollowUps.OrderByDescending(f => f.Id).ToList());
+    }
+
     // POST /api/leads/{id}/followups
     [HttpPost("{id}/followups")]
     public async Task<IActionResult> AddFollowUp(string id, [FromBody] AddFollowUpRequest request)
@@ -231,23 +257,27 @@ public class LeadsApiController : ControllerBase
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
 
-        if (string.IsNullOrWhiteSpace(request.FollowUpDate) || string.IsNullOrWhiteSpace(request.FollowUpTime) || string.IsNullOrWhiteSpace(request.Status))
-            return BadRequest(new ApiError { Message = "FollowUpDate, FollowUpTime and Status are required." });
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var nowTime = DateTime.UtcNow.ToString("HH:mm");
+
+        var followUpDate = !string.IsNullOrWhiteSpace(request?.FollowUpDate) ? request.FollowUpDate.Trim() : today;
+        var followUpTime = !string.IsNullOrWhiteSpace(request?.FollowUpTime) ? request.FollowUpTime.Trim() : nowTime;
+        var status = !string.IsNullOrWhiteSpace(request?.Status) ? request.Status.Trim() : "Scheduled";
 
         var newFollowUp = new FollowUpEntry
         {
-            FollowUpDate = request.FollowUpDate,
-            FollowUpTime = request.FollowUpTime,
-            FollowUpType = string.IsNullOrWhiteSpace(request.FollowUpType) ? "Call" : request.FollowUpType,
+            FollowUpDate = followUpDate,
+            FollowUpTime = followUpTime,
+            FollowUpType = string.IsNullOrWhiteSpace(request?.FollowUpType) ? "Call" : request.FollowUpType,
             AssignedEmployee = lead.AssignedTo,
-            Status = request.Status,
-            Remarks = request.Remarks ?? ""
+            Status = status,
+            Remarks = request?.Remarks ?? ""
         };
 
         lead.FollowUps.Add(newFollowUp);
 
         // Keep the lead's "next follow-up" quick-glance field in sync with the latest entry.
-        lead.FollowUpDate = request.FollowUpDate;
+        lead.FollowUpDate = followUpDate;
 
         if (!await TrySaveAsync($"add follow-up for lead '{id}'"))
         {
@@ -264,6 +294,17 @@ public class LeadsApiController : ControllerBase
         });
     }
 
+    // GET /api/leads/{id}/visits
+    // GET /api/leads/{id}/client-visits
+    [HttpGet("{id}/visits")]
+    [HttpGet("{id}/client-visits")]
+    public ActionResult<IEnumerable<VisitEntry>> GetVisits(string id)
+    {
+        var lead = LeadStore.GetById(id);
+        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        return Ok(lead.Visits.OrderByDescending(v => v.Id).ToList());
+    }
+
     // POST /api/leads/{id}/visits
     [HttpPost("{id}/visits")]
     public async Task<IActionResult> AddVisit(string id, [FromBody] AddVisitRequest request)
@@ -271,18 +312,22 @@ public class LeadsApiController : ControllerBase
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
 
-        if (string.IsNullOrWhiteSpace(request.VisitDate) || string.IsNullOrWhiteSpace(request.VisitTime) || string.IsNullOrWhiteSpace(request.VisitLocation))
-            return BadRequest(new ApiError { Message = "VisitDate, VisitTime and VisitLocation are required." });
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var nowTime = DateTime.UtcNow.ToString("HH:mm");
+
+        var visitDate = !string.IsNullOrWhiteSpace(request?.VisitDate) ? request.VisitDate.Trim() : today;
+        var visitTime = !string.IsNullOrWhiteSpace(request?.VisitTime) ? request.VisitTime.Trim() : nowTime;
+        var visitLocation = !string.IsNullOrWhiteSpace(request?.VisitLocation) ? request.VisitLocation.Trim() : "Office";
 
         var newVisit = new VisitEntry
         {
-            VisitDate = request.VisitDate,
-            VisitTime = request.VisitTime,
-            VisitLocation = request.VisitLocation,
-            Employee = !string.IsNullOrWhiteSpace(request.Employee) ? request.Employee : (lead.AssignedTo ?? ""),
-            Outcome = !string.IsNullOrWhiteSpace(request.Outcome) ? request.Outcome : "Interested",
-            Conversation = request.Conversation ?? "",
-            Remarks = request.Remarks ?? ""
+            VisitDate = visitDate,
+            VisitTime = visitTime,
+            VisitLocation = visitLocation,
+            Employee = !string.IsNullOrWhiteSpace(request?.Employee) ? request.Employee : (lead.AssignedTo ?? ""),
+            Outcome = !string.IsNullOrWhiteSpace(request?.Outcome) ? request.Outcome : "Interested",
+            Conversation = request?.Conversation ?? "",
+            Remarks = request?.Remarks ?? ""
         };
 
         lead.Visits.Add(newVisit);
@@ -300,6 +345,15 @@ public class LeadsApiController : ControllerBase
             visit = newVisit,
             lead = lead
         });
+    }
+
+    // GET /api/leads/{id}/requirements
+    [HttpGet("{id}/requirements")]
+    public ActionResult<IEnumerable<RequirementEntry>> GetRequirements(string id)
+    {
+        var lead = LeadStore.GetById(id);
+        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        return Ok(lead.Requirements.OrderByDescending(r => r.Id).ToList());
     }
 
     // POST /api/leads/{id}/requirements   (JSON body, no image)
