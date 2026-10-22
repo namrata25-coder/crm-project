@@ -269,9 +269,9 @@ public class InvoicesApiController : ControllerBase
                     return BadRequest(new { message = "Due Date cannot be before Invoice Date." });
             }
 
-            var subtotal = milestone is null
-                ? Math.Max(0, input.Amount)
-                : (milestone.Amount > 0 ? milestone.Amount : milestone.EffectiveAmount);
+            var subtotal = input.Amount > 0
+                ? input.Amount
+                : (milestone is not null ? (milestone.Amount > 0 ? milestone.Amount : milestone.EffectiveAmount) : 0m);
             var discount = Math.Max(0, input.Discount);
             if (discount > subtotal)
                 discount = subtotal;
@@ -285,14 +285,14 @@ public class InvoicesApiController : ControllerBase
                 ? NextInvoiceNumber()
                 : input.InvoiceNumber.Trim().ToUpper();
 
-            // Client fallback from project if empty
-            var clientName = milestone is not null
-                ? project.ClientName ?? ""
-                : (!string.IsNullOrWhiteSpace(input.ClientName) ? input.ClientName.Trim() : project.ClientName ?? "");
+            // Prioritize user entered/selected client name, then fallback to project
+            var clientName = !string.IsNullOrWhiteSpace(input.ClientName)
+                ? input.ClientName.Trim()
+                : (project.ClientName ?? "");
 
-            var clientCompany = milestone is not null
-                ? project.ClientCompany ?? ""
-                : (!string.IsNullOrWhiteSpace(input.ClientCompany) ? input.ClientCompany.Trim() : project.ClientCompany ?? "");
+            var clientCompany = !string.IsNullOrWhiteSpace(input.ClientCompany)
+                ? input.ClientCompany.Trim()
+                : (!string.IsNullOrWhiteSpace(project.ClientCompany) ? project.ClientCompany : clientName);
 
             var leads = await _db.Leads.AsNoTracking().ToListAsync();
 
@@ -533,12 +533,21 @@ public class InvoicesApiController : ControllerBase
             if (!string.IsNullOrWhiteSpace(input.ClientId))
                 invoice.ClientId = input.ClientId.Trim();
 
-            invoice.ClientName         = selectedMilestone is not null ? project?.ClientName ?? "" : input.ClientName?.Trim() ?? invoice.ClientName;
-            invoice.ClientCompany      = selectedMilestone is not null ? project?.ClientCompany ?? "" : input.ClientCompany?.Trim() ?? invoice.ClientCompany;
+            if (!string.IsNullOrWhiteSpace(input.ClientName))
+                invoice.ClientName = input.ClientName.Trim();
+            else if (!string.IsNullOrWhiteSpace(project?.ClientName))
+                invoice.ClientName = project.ClientName;
+
+            if (!string.IsNullOrWhiteSpace(input.ClientCompany))
+                invoice.ClientCompany = input.ClientCompany.Trim();
+            else if (!string.IsNullOrWhiteSpace(project?.ClientCompany))
+                invoice.ClientCompany = project.ClientCompany;
+            else if (!string.IsNullOrWhiteSpace(invoice.ClientName))
+                invoice.ClientCompany = invoice.ClientName;
             
-            var subtotal = selectedMilestone is null
-                ? Math.Max(0, input.Amount)
-                : (selectedMilestone.Amount > 0 ? selectedMilestone.Amount : selectedMilestone.EffectiveAmount);
+            var subtotal = input.Amount > 0
+                ? input.Amount
+                : (selectedMilestone is not null ? (selectedMilestone.Amount > 0 ? selectedMilestone.Amount : selectedMilestone.EffectiveAmount) : invoice.Amount);
             var discount = Math.Max(0, input.Discount);
             if (discount > subtotal) discount = subtotal;
 
@@ -718,6 +727,7 @@ public class InvoicesApiController : ControllerBase
 
             var pdfDto = new InvoicePdfDto
             {
+                Id                       = dto.Id,
                 CompanyName              = "Vision CRM Technologies Pvt. Ltd.",
                 CompanyAddress           = "Level 5, Tower B, Cyber City, Bangalore - 560103, Karnataka, India",
                 CompanyEmail             = "billing@visioncrm.com",
@@ -738,6 +748,8 @@ public class InvoicesApiController : ControllerBase
                 MilestoneCode            = dto.MilestoneCode,
                 MilestoneDescription      = dto.MilestoneDescription,
                 MilestoneProgressPercent = dto.MilestoneProgressPercent,
+                Quantity                 = 1,
+                UnitPrice                = dto.Amount,
                 Subtotal                 = dto.Amount,
                 Discount                 = dto.Discount,
                 TaxableAmount            = taxableAmount,
@@ -806,21 +818,23 @@ public class InvoicesApiController : ControllerBase
 
         var clientCompany = !string.IsNullOrWhiteSpace(inv.ClientCompany)
             ? inv.ClientCompany
-            : (inv.Project?.ClientCompany ?? "");
+            : (!string.IsNullOrWhiteSpace(inv.Project?.ClientCompany) ? inv.Project.ClientCompany : clientName);
 
         // Find email and mobile from lead records
-        var matchedLead = leads.FirstOrDefault(l =>
-            (!string.IsNullOrWhiteSpace(l.LeadName) && string.Equals(l.LeadName, clientName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(l.CompanyName) && string.Equals(l.CompanyName, clientCompany, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(l.CompanyName) && string.Equals(l.CompanyName, clientName, StringComparison.OrdinalIgnoreCase)));
+        var matchedLead = (!string.IsNullOrWhiteSpace(inv.ClientId) ? leads.FirstOrDefault(l => l.LeadId == inv.ClientId) : null)
+            ?? leads.FirstOrDefault(l =>
+                (!string.IsNullOrWhiteSpace(l.LeadName) && string.Equals(l.LeadName, clientName, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(l.CompanyName) && string.Equals(l.CompanyName, clientCompany, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(l.CompanyName) && string.Equals(l.CompanyName, clientName, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(l.LeadName) && string.Equals(l.LeadName, clientCompany, StringComparison.OrdinalIgnoreCase)));
 
         var clientEmail = matchedLead?.Email ?? "";
         var clientMobile = matchedLead?.MobileNumber ?? "";
 
         var milestoneName = inv.Milestone?.MilestoneName ?? (inv.MilestoneId.HasValue ? $"Milestone #{inv.MilestoneId}" : "Project Level");
         var milestoneCode = inv.Milestone?.MilestoneCode ?? "";
-        var milestoneDesc = inv.Milestone?.Description ?? "";
-        var milestoneProgress = inv.Milestone?.ProgressPercent ?? 0;
+        var milestoneDesc = inv.Milestone?.Description ?? (inv.Notes ?? "");
+        var milestoneProgress = inv.Milestone?.ProgressPercent ?? 100;
 
         return new InvoiceResponseDto
         {
@@ -841,6 +855,8 @@ public class InvoicesApiController : ControllerBase
             ClientMobile             = clientMobile,
             InvoiceDate              = inv.InvoiceDate ?? "",
             DueDate                  = inv.DueDate ?? "",
+            Quantity                 = 1,
+            UnitPrice                = inv.Amount,
             Amount                   = inv.Amount,
             TaxRate                  = inv.TaxRate,
             Tax                      = inv.Tax,
@@ -912,6 +928,8 @@ public class InvoiceResponseDto
     public string ClientMobile { get; set; } = "";
     public string InvoiceDate { get; set; } = "";
     public string DueDate { get; set; } = "";
+    public int Quantity { get; set; } = 1;
+    public decimal UnitPrice { get; set; }
     public decimal Amount { get; set; }
     public decimal TaxRate { get; set; }
     public decimal Tax { get; set; }
@@ -946,6 +964,7 @@ public class PaymentItemDto
 
 public class InvoicePdfDto
 {
+    public int Id { get; set; }
     public string CompanyName { get; set; } = "";
     public string CompanyAddress { get; set; } = "";
     public string CompanyEmail { get; set; } = "";
@@ -966,6 +985,8 @@ public class InvoicePdfDto
     public string MilestoneCode { get; set; } = "";
     public string MilestoneDescription { get; set; } = "";
     public int MilestoneProgressPercent { get; set; }
+    public int Quantity { get; set; } = 1;
+    public decimal UnitPrice { get; set; }
     public decimal Subtotal { get; set; }
     public decimal Discount { get; set; }
     public decimal TaxableAmount { get; set; }

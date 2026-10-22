@@ -62,10 +62,10 @@
         </div>
 
         <div class="roles-toolbar-right">
-            <button type="button" class="btn btn-primary btn-sm" onclick="openNewRoleModal()">
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewRole" onclick="openNewRoleModal()">
                 <i class="bi bi-plus-lg"></i> New Role
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="openRenameRoleModal()">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnRenameRole" onclick="openRenameRoleModal()">
                 <i class="bi bi-pencil"></i> Rename
             </button>
             <button type="button" class="btn btn-danger-outline btn-sm" id="btnDeleteRole" onclick="openDeleteRoleModal()" style="@(selected.IsSystem ? "display:none;" : "")">
@@ -288,7 +288,7 @@
 <!-- ================= MODALS ================= -->
 
 <!-- 1. CREATE NEW ROLE MODAL -->
-<div class="modal-backdrop-custom" id="modalNewRole" style="display:none;" onclick="if(event.target.id==='modalNewRole') closeModal('modalNewRole')">
+<div class="modal-backdrop-custom" id="modalNewRole" onclick="if(event.target.id==='modalNewRole') closeModal('modalNewRole')">
     <div class="modal-dialog-custom" style="max-width:520px;" onclick="event.stopPropagation()">
         <div class="modal-header-custom">
             <div>
@@ -347,7 +347,7 @@
 </div>
 
 <!-- 2. RENAME ROLE MODAL -->
-<div class="modal-backdrop-custom" id="modalRenameRole" style="display:none;">
+<div class="modal-backdrop-custom" id="modalRenameRole" onclick="if(event.target.id==='modalRenameRole') closeModal('modalRenameRole')">
     <div class="modal-dialog-custom">
         <div class="modal-header-custom">
             <div class="modal-title-custom">
@@ -379,7 +379,7 @@
 </div>
 
 <!-- 3. DELETE ROLE MODAL -->
-<div class="modal-backdrop-custom" id="modalDeleteRole" style="display:none;">
+<div class="modal-backdrop-custom" id="modalDeleteRole" onclick="if(event.target.id==='modalDeleteRole') closeModal('modalDeleteRole')">
     <div class="modal-dialog-custom">
         <div class="modal-header-custom">
             <div class="modal-title-custom text-danger">
@@ -1085,6 +1085,7 @@
 }
 </style>
 
+@section Scripts {
 <script>
 // State management
 let currentRole = "@Html.Raw(selected.RoleName)";
@@ -1644,3 +1645,4 @@ function showToast(message, type = "success") {
     }, 3500);
 }
 </script>
+}

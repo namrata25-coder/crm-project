@@ -33,6 +33,7 @@ window.escapeHtml = function (str) {
 function openModal(id) {
   const el = document.getElementById(id);
   if (el) {
+    el.style.display = 'flex';
     el.classList.add('show');
     el.classList.add('open');
   }
@@ -41,6 +42,7 @@ function openModal(id) {
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) {
+    el.style.display = 'none';
     el.classList.remove('show');
     el.classList.remove('open');
   }
@@ -49,6 +51,7 @@ function closeModal(id) {
 // Close modal when clicking the backdrop itself
 document.addEventListener('click', function (e) {
   if (e.target.classList && e.target.classList.contains('modal-backdrop-custom')) {
+    e.target.style.display = 'none';
     e.target.classList.remove('show');
     e.target.classList.remove('open');
   }
@@ -58,6 +61,7 @@ document.addEventListener('click', function (e) {
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal-backdrop-custom').forEach(m => {
+      m.style.display = 'none';
       m.classList.remove('show');
       m.classList.remove('open');
     });
@@ -771,4 +775,153 @@ function toggleSidebarGroup(btn) {
   if (!group) return;
   const isOpen = group.classList.toggle('open');
   btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+
+// Handles PDF file input change with validation and file size formatting
+function handleFinancePdfChange(input, kind) {
+  const nameEl = document.getElementById(kind + 'AttachmentFileName');
+  if (!nameEl) return;
+  if (!input.files || input.files.length === 0) {
+    nameEl.textContent = 'No file chosen';
+    nameEl.style.color = 'var(--ink-500, #64748b)';
+    return;
+  }
+  const file = input.files[0];
+  const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+  if (!isPdf) {
+    alert('Please select a valid PDF file. Other file formats are not supported for this form.');
+    input.value = '';
+    nameEl.textContent = 'No file chosen';
+    nameEl.style.color = 'var(--ink-500, #64748b)';
+    return;
+  }
+  const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+  nameEl.textContent = file.name + ' (' + sizeMb + ' MB)';
+  nameEl.style.color = 'var(--brand-600, #4f46e5)';
+}
+
+// Opens the Add Estimation / Quotation / Proposal modal on Finance list pages
+function openAddFinanceModal(kind) {
+  const cap = capitalize(kind);
+  const modalId = 'add' + cap + 'Modal';
+
+  // Reset fields
+  const numInput = document.getElementById(kind + 'Number');
+  if (numInput) numInput.value = '';
+
+  const titleEl = document.getElementById(kind + 'ModalTitle');
+  if (titleEl) titleEl.textContent = 'Add ' + cap;
+
+  const btnTextEl = document.getElementById(kind + 'SubmitBtnText');
+  if (btnTextEl) btnTextEl.textContent = 'Save ' + cap;
+
+  const fileInput = document.getElementById(kind + 'Attachment');
+  if (fileInput) fileInput.value = '';
+
+  const nameEl = document.getElementById(kind + 'AttachmentFileName');
+  if (nameEl) {
+    nameEl.textContent = 'No file chosen';
+    nameEl.style.color = 'var(--ink-500, #64748b)';
+  }
+
+  const currentBox = document.getElementById(kind + 'CurrentAttachment');
+  if (currentBox) currentBox.style.display = 'none';
+
+  const notesEl = document.getElementById(kind + 'Notes');
+  if (notesEl) notesEl.value = '';
+
+  const leadSelect = document.getElementById(kind + 'LeadId');
+  if (leadSelect && leadSelect.options.length > 0) {
+    leadSelect.selectedIndex = 0;
+    leadSelect.disabled = false;
+  }
+
+  openModal(modalId);
+}
+
+// Opens the Edit Estimation / Quotation / Proposal modal on Finance list pages
+function openEditFinanceModal(kind, number) {
+  const cap = capitalize(kind);
+  const modalId = 'add' + cap + 'Modal';
+  const dataEl = document.getElementById(kind + '-json-' + number);
+  if (!dataEl) return;
+
+  let d = {};
+  try {
+    d = JSON.parse(dataEl.textContent);
+  } catch (err) {
+    console.error('Error parsing finance record JSON', err);
+    return;
+  }
+
+  const numInput = document.getElementById(kind + 'Number');
+  if (numInput) numInput.value = d.Number || number;
+
+  const titleEl = document.getElementById(kind + 'ModalTitle');
+  if (titleEl) titleEl.textContent = 'Edit ' + cap + ' — ' + (d.Number || number);
+
+  const btnTextEl = document.getElementById(kind + 'SubmitBtnText');
+  if (btnTextEl) btnTextEl.textContent = 'Update ' + cap;
+
+  const fileInput = document.getElementById(kind + 'Attachment');
+  if (fileInput) fileInput.value = '';
+
+  const nameEl = document.getElementById(kind + 'AttachmentFileName');
+  if (nameEl) {
+    nameEl.textContent = 'No new file chosen';
+    nameEl.style.color = 'var(--ink-500, #64748b)';
+  }
+
+  const currentBox = document.getElementById(kind + 'CurrentAttachment');
+  const currentLink = document.getElementById(kind + 'CurrentAttachmentLink');
+  if (currentBox && currentLink) {
+    if (d.AttachmentPath) {
+      currentLink.href = d.AttachmentPath;
+      currentLink.textContent = d.AttachmentFileName || 'View Attached PDF';
+      currentBox.style.display = 'flex';
+    } else {
+      currentBox.style.display = 'none';
+    }
+  }
+
+  const notesEl = document.getElementById(kind + 'Notes');
+  if (notesEl) notesEl.value = d.Notes || d.Description || '';
+
+  const leadSelect = document.getElementById(kind + 'LeadId');
+  if (leadSelect && d.LeadId) {
+    leadSelect.value = d.LeadId;
+  }
+
+  openModal(modalId);
+}
+
+// Validates the Add/Edit Estimation/Quotation/Proposal form before submission
+function validateFinanceForm(form, kind) {
+  const numInput = document.getElementById(kind + 'Number');
+  const isEdit = numInput && numInput.value.trim() !== '';
+  const fileInput = document.getElementById(kind + 'Attachment');
+  const currentBox = document.getElementById(kind + 'CurrentAttachment');
+  const hasExisting = currentBox && currentBox.style.display !== 'none';
+
+  if (!isEdit || !hasExisting) {
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      alert('Please attach a PDF file to proceed.');
+      return false;
+    }
+  }
+
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (!isPdf) {
+      alert('Please select a valid PDF file. Other file formats are not supported.');
+      return false;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Attachment file size exceeds the 10 MB limit.');
+      return false;
+    }
+  }
+
+  return true;
 }
