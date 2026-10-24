@@ -195,8 +195,8 @@ public class AppAuthController : ControllerBase
 
         if (user == null)
         {
-            _logger.LogWarning("Failed login for unregistered User ID/Email: {Input} from IP: {IP}", input, ip);
-            return Unauthorized(new AppApiError { Message = "Invalid User ID or Password. Please register first if you don't have an account." });
+            _logger.LogWarning("Failed login for unknown User ID/Email: {Input} from IP: {IP}", input, ip);
+            return Unauthorized(new AppApiError { Message = "Invalid User ID or Password." });
         }
 
         if (user.IsAdminAccount)
@@ -235,7 +235,7 @@ public class AppAuthController : ControllerBase
                 _logger.LogWarning("User {UserId} ({Email}) locked out for 15 minutes due to 5 failed login attempts from IP: {IP}", user.Id, user.Email, ip);
             }
             await _db.SaveChangesAsync();
-            return Unauthorized(new AppApiError { Message = "Invalid User ID or Password. Please register first if you don't have an account." });
+            return Unauthorized(new AppApiError { Message = "Invalid User ID or Password." });
         }
 
         if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
@@ -396,82 +396,11 @@ public class AppAuthController : ControllerBase
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting("AuthRateLimit")]
-    public async Task<IActionResult> Register([FromBody] AppRegisterRequest request)
+    public Task<IActionResult> Register([FromBody] AppRegisterRequest request)
     {
-        var registrationMode = _configuration.GetValue<string>("Auth:RegistrationMode") ?? "Disabled";
-        if (string.Equals(registrationMode, "Disabled", StringComparison.OrdinalIgnoreCase))
+        return Task.FromResult<IActionResult>(StatusCode(StatusCodes.Status403Forbidden, new AppApiError
         {
-            return StatusCode(StatusCodes.Status403Forbidden, new AppApiError { Message = "Registration is currently disabled." });
-        }
-
-        var name = request.Name?.Trim() ?? "";
-        var email = request.Email?.Trim() ?? "";
-
-        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email))
-        {
-            return BadRequest(new AppApiError { Message = "Name and email are required." });
-        }
-
-        if (await _db.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == email.ToLower()))
-        {
-            return Conflict(new AppApiError { Message = "A user with this email address already exists." });
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Password) ||
-            request.Password.Length < 8 ||
-            !request.Password.Any(char.IsLetter) ||
-            !request.Password.Any(char.IsDigit))
-        {
-            return BadRequest(new AppApiError
-            {
-                Message = "Password must be at least 8 characters long and contain at least one letter and one number."
-            });
-        }
-
-        var adminSeedPw = _configuration["Seed:AdminPassword"]?.Trim() ?? "AdminPassword123!";
-        if (string.Equals(request.Password.Trim(), adminSeedPw, StringComparison.Ordinal))
-        {
-            return BadRequest(new AppApiError
-            {
-                Message = "User password must be different from the administrator password."
-            });
-        }
-
-        // Prevent self-escalation: End-users can NEVER register as Admin
-        if (!string.IsNullOrWhiteSpace(request.Role) &&
-            (string.Equals(request.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(request.Role, "Super Admin", StringComparison.OrdinalIgnoreCase)))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new AppApiError
-            {
-                Message = "Access denied: Users cannot register or assign themselves the Admin role."
-            });
-        }
-
-        var status = string.Equals(registrationMode, "ApprovalRequired", StringComparison.OrdinalIgnoreCase)
-            ? "Inactive"
-            : "Active";
-
-        var newUser = new UserRoleEntry
-        {
-            Name = name,
-            Email = email,
-            Role = "Sales Executive",
-            Status = status,
-            IsAuthorizedUser = true
-        };
-
-        newUser.PasswordHash = _passwordHasher.HashPassword(newUser, request.Password);
-
-        _db.Users.Add(newUser);
-        await _db.SaveChangesAsync();
-
-        return Ok(new AppUserProfileDto
-        {
-            Id = newUser.Id,
-            Name = newUser.Name,
-            Email = newUser.Email,
-            Role = newUser.Role
-        });
+            Message = "Registration is disabled. Please contact your administrator for account creation."
+        }));
     }
 }

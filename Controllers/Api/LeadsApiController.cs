@@ -51,18 +51,99 @@ public class LeadsApiController : ControllerBase
         }
     }
 
+    private (UserRoleEntry? user, bool isSalesExec, List<string> matches) IdentifyUser()
+    {
+        var currentUser = PermissionChecker.GetCurrentUser(_db, User);
+        var effectiveRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? currentUser?.Role;
+
+        if (Request.Headers.TryGetValue("X-User-Role", out var rVal1) && !string.IsNullOrWhiteSpace(rVal1))
+            effectiveRole = rVal1.ToString().Trim();
+        else if (Request.Headers.TryGetValue("X-Role", out var rVal2) && !string.IsNullOrWhiteSpace(rVal2))
+            effectiveRole = rVal2.ToString().Trim();
+        else if (Request.Headers.TryGetValue("Role", out var rVal3) && !string.IsNullOrWhiteSpace(rVal3))
+            effectiveRole = rVal3.ToString().Trim();
+
+        bool isSalesExec = false;
+        if (!string.IsNullOrWhiteSpace(effectiveRole) &&
+            (string.Equals(effectiveRole, "Sales Executive", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(effectiveRole, "SalesExecutive", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(effectiveRole, "Executive", StringComparison.OrdinalIgnoreCase)))
+        {
+            isSalesExec = true;
+        }
+
+        if (!isSalesExec && currentUser != null && !string.IsNullOrWhiteSpace(currentUser.Role))
+        {
+            if (string.Equals(currentUser.Role, "Sales Executive", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(currentUser.Role, "SalesExecutive", StringComparison.OrdinalIgnoreCase))
+            {
+                isSalesExec = true;
+            }
+            else
+            {
+                var roleMaster = _db.RoleMasters.AsNoTracking().FirstOrDefault(r => r.RoleName == currentUser.Role);
+                if (roleMaster != null && string.Equals(roleMaster.DataAccess, "OnlyAssigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    isSalesExec = true;
+                }
+            }
+        }
+
+        if (currentUser != null && (currentUser.IsAdminAccount || string.Equals(currentUser.Role, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(currentUser.Role, "Super Admin", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (string.IsNullOrWhiteSpace(effectiveRole) || (!string.Equals(effectiveRole, "Sales Executive", StringComparison.OrdinalIgnoreCase) && !string.Equals(effectiveRole, "SalesExecutive", StringComparison.OrdinalIgnoreCase)))
+            {
+                isSalesExec = false;
+            }
+        }
+
+        var matches = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(currentUser?.Name)) matches.Add(currentUser.Name.Trim());
+        if (!string.IsNullOrWhiteSpace(currentUser?.Email)) matches.Add(currentUser.Email.Trim());
+        if (!string.IsNullOrWhiteSpace(currentUser?.UserId)) matches.Add(currentUser.UserId.Trim());
+        if (!string.IsNullOrWhiteSpace(User.Identity?.Name)) matches.Add(User.Identity.Name.Trim());
+        var emailClaim = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        if (!string.IsNullOrWhiteSpace(emailClaim)) matches.Add(emailClaim.Trim());
+        if (Request.Headers.TryGetValue("X-User-Name", out var hName) && !string.IsNullOrWhiteSpace(hName)) matches.Add(hName.ToString().Trim());
+        if (Request.Headers.TryGetValue("X-User-Email", out var hEmail) && !string.IsNullOrWhiteSpace(hEmail)) matches.Add(hEmail.ToString().Trim());
+
+        return (currentUser, isSalesExec, matches.Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+    }
+
+    private bool IsAssigned(Lead? lead, List<string> matches)
+    {
+        if (lead == null || string.IsNullOrWhiteSpace(lead.AssignedTo)) return false;
+        var assigned = lead.AssignedTo.Trim();
+        return matches.Any(m => string.Equals(m, assigned, StringComparison.OrdinalIgnoreCase));
+    }
+
     // GET /api/leads
     // GET /api/leads?status=Qualified&assignedTo=Ananya+Sharma&search=orion
     [HttpGet]
     public ActionResult<IEnumerable<Lead>> GetAll([FromQuery] string? status, [FromQuery] string? assignedTo, [FromQuery] string? search)
     {
+        var (currentUser, isSalesExec, matches) = IdentifyUser();
         var leads = LeadStore.Leads.AsEnumerable();
+
+        if (isSalesExec)
+        {
+            if (matches.Count > 0)
+            {
+                leads = leads.Where(l => !string.IsNullOrWhiteSpace(l.AssignedTo) &&
+                    matches.Any(m => string.Equals(m, l.AssignedTo.Trim(), StringComparison.OrdinalIgnoreCase)));
+            }
+            else
+            {
+                return Ok(new List<Lead>());
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(assignedTo))
+        {
+            leads = leads.Where(l => string.Equals(l.AssignedTo, assignedTo, StringComparison.OrdinalIgnoreCase));
+        }
 
         if (!string.IsNullOrWhiteSpace(status))
             leads = leads.Where(l => string.Equals(l.LeadStatus, status, StringComparison.OrdinalIgnoreCase));
-
-        if (!string.IsNullOrWhiteSpace(assignedTo))
-            leads = leads.Where(l => string.Equals(l.AssignedTo, assignedTo, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -81,7 +162,13 @@ public class LeadsApiController : ControllerBase
     [HttpGet("assigned")]
     public ActionResult<IEnumerable<Lead>> GetAssigned()
     {
-        return Ok(LeadStore.Leads.Where(l => !string.IsNullOrWhiteSpace(l.AssignedTo)).ToList());
+        var (currentUser, isSalesExec, matches) = IdentifyUser();
+        var leads = LeadStore.Leads.Where(l => !string.IsNullOrWhiteSpace(l.AssignedTo));
+        if (isSalesExec)
+        {
+            leads = leads.Where(l => matches.Any(m => string.Equals(m, l.AssignedTo!.Trim(), StringComparison.OrdinalIgnoreCase)));
+        }
+        return Ok(leads.ToList());
     }
 
     // GET /api/leads/count
@@ -94,8 +181,22 @@ public class LeadsApiController : ControllerBase
     [HttpGet("statistics", Order = -1)]
     public ActionResult<LeadCountSummaryDto> GetCount([FromQuery] string? assignedTo)
     {
+        var (currentUser, isSalesExec, matches) = IdentifyUser();
         var leads = LeadStore.Leads.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(assignedTo))
+
+        if (isSalesExec)
+        {
+            if (matches.Count > 0)
+            {
+                leads = leads.Where(l => !string.IsNullOrWhiteSpace(l.AssignedTo) &&
+                    matches.Any(m => string.Equals(m, l.AssignedTo.Trim(), StringComparison.OrdinalIgnoreCase)));
+            }
+            else
+            {
+                return Ok(new LeadCountSummaryDto());
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(assignedTo))
         {
             leads = leads.Where(l => string.Equals(l.AssignedTo, assignedTo, StringComparison.OrdinalIgnoreCase));
         }
@@ -137,8 +238,13 @@ public class LeadsApiController : ControllerBase
             return Ok(GetCount(null).Value);
         }
 
+        var (currentUser, isSalesExec, matches) = IdentifyUser();
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        if (isSalesExec && !IsAssigned(lead, matches))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiError { Message = "You do not have permission to view this lead." });
+        }
         return Ok(lead);
     }
 

@@ -104,6 +104,15 @@ public class InvoicesApiController : ControllerBase
                 .Include(i => i.Payments)
                 .AsQueryable();
 
+            // Role‑based filtering: admins/managers see all invoices, others only those linked to accessible projects
+            var currentUser = PermissionChecker.GetCurrentUser(_db, User);
+            var isAdminOrManager = PermissionChecker.IsAdminOrManager(_db, User);
+            if (!isAdminOrManager && currentUser != null)
+            {
+                var accessibleProjectIds = await ProjectAccessPolicy.GetAccessibleProjectIdsAsync(_db, User);
+                query = query.Where(i => accessibleProjectIds.Contains(i.ProjectId));
+            }
+
             if (projectId.HasValue && projectId.Value > 0)
                 query = query.Where(i => i.ProjectId == projectId.Value);
 

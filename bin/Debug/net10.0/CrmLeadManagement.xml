@@ -231,16 +231,36 @@
             Returns only id, name, email, role (no permissions or sensitive data).
             </summary>
         </member>
-        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetLeads">
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.IdentifyRequestUserAsync">
+            <summary>
+            Identifies the requesting user from authentication claims, authorization bearer token header,
+            or custom request headers (e.g. X-User-Email, X-User-Id, X-User-Role).
+            Determines whether the user is restricted as a Sales Executive.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetUserAssignmentMatchStrings(CrmLeadManagement.Models.UserRoleEntry)">
+            <summary>
+            Collects all valid user identification strings (name, email, userId) to match against lead.AssignedTo.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.IsLeadAssignedToUser(CrmLeadManagement.Models.Lead,CrmLeadManagement.Models.UserRoleEntry)">
+            <summary>
+            Checks whether a given lead is assigned to the specified user.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetLeads(System.String,System.String,System.String)">
             <summary>
             Gets all leads formatted for app consumption.
             Route: GET /api/v1/app/leads
+            Role-based access: If the requesting user has the 'Sales Executive' role (identified via request headers/token),
+            the dataset is automatically and securely filtered to only return leads assigned to that user.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetLeadStats(System.String)">
             <summary>
             Gets lead count and summary metrics formatted for mobile/app consumption.
             Route: GET /api/v1/app/leads/stats (also /statistics, /count, /counts)
+            Role-based metrics: If requesting user is a Sales Executive, metrics are calculated strictly on their assigned leads.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetLead(System.String)">
@@ -615,7 +635,7 @@
             Serves the browser login page at /login.
             </summary>
         </member>
-        <member name="M:CrmLeadManagement.Controllers.AuthController.Login(System.String,System.String,System.String)">
+        <member name="M:CrmLeadManagement.Controllers.AuthController.Login(System.String,System.String)">
             <summary>
             Displays the login page.
             Route: /login
@@ -626,23 +646,15 @@
             Handles user login submission (supports standard HTML form post).
             </summary>
         </member>
-        <member name="M:CrmLeadManagement.Controllers.AuthController.Register">
-            <summary>
-            Displays the User Registration page.
-            Route: /register, /auth/register, /user/register
-            </summary>
-        </member>
+        <!-- Badly formed XML comment ignored for member "M:CrmLeadManagement.Controllers.AuthController.Register" -->
         <member name="M:CrmLeadManagement.Controllers.AuthController.Register(CrmLeadManagement.Models.RegisterViewModel)">
             <summary>
-            Handles User Registration submission.
-            Strictly assigns the 'User' role. Admin role can NEVER be granted via registration.
-            Validates unique User ID and Email.
-            Hashes passwords securely.
+            Registration is disabled: Redirect any register POST requests to login.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AuthController.ApiRegister(CrmLeadManagement.Models.RegisterViewModel)">
             <summary>
-            REST JSON User Registration API endpoint.
+            REST JSON User Registration API endpoint is disabled.
             Route: /api/auth/register
             </summary>
         </member>
@@ -1370,6 +1382,18 @@
             <summary>
             Centralized authorization and permission checker for VisionCRM.
             Evaluates module permissions based on RoleMaster definitions and user assignments.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Security.PermissionChecker.IsAdminOrManager(System.Security.Claims.ClaimsPrincipal,CrmLeadManagement.Models.UserRoleEntry)">
+            <summary>
+            Returns true if the user is Admin, Super Admin, or Manager.
+            Manager role users get full data visibility in Work module (same as Admin).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Security.PermissionChecker.IsAdminOrManager(CrmLeadManagement.Models.AppDbContext,System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Returns true if the user is Admin, Super Admin, or Manager.
+            Overload that fetches the user from the database.
             </summary>
         </member>
         <member name="T:CrmLeadManagement.Security.UserAuthorizeAttribute">

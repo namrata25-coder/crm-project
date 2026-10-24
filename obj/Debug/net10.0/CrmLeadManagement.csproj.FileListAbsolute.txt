@@ -1,14 +1,64 @@
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\appsettings.Development.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\appsettings.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\appsettings.Production.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\VisionCRM_AppApi_Postman_Collection.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.staticwebassets.runtime.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.staticwebassets.endpoints.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.deps.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.runtimeconfig.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.dll
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.pdb
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-build-check\CrmLeadManagement.xml
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\appsettings.Development.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\appsettings.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\appsettings.Production.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\VisionCRM_AppApi_Postman_Collection.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.staticwebassets.runtime.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.staticwebassets.endpoints.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.deps.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.runtimeconfig.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.dll
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.pdb
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-project-scope-build\CrmLeadManagement.xml
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\appsettings.Development.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\appsettings.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\appsettings.Production.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\VisionCRM_AppApi_Postman_Collection.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.staticwebassets.runtime.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.staticwebassets.endpoints.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.deps.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.runtimeconfig.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.dll
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.pdb
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-build\CrmLeadManagement.xml
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\appsettings.Development.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\appsettings.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\appsettings.Production.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\VisionCRM_AppApi_Postman_Collection.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.staticwebassets.runtime.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.staticwebassets.endpoints.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.deps.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.runtimeconfig.json
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.dll
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.pdb
+C:\Users\admin\AppData\Local\Temp\CrmLeadManagement-ui-access-final-build\CrmLeadManagement.xml
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.exe
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Abstractions.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Relational.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.OpenApi.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Npgsql.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Swashbuckle.AspNetCore.Swagger.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerUI.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\appsettings.Development.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\appsettings.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\appsettings.Production.json
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\VisionCRM_AppApi_Postman_Collection.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.staticwebassets.runtime.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.staticwebassets.endpoints.json
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.exe
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.deps.json
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.runtimeconfig.json
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.pdb
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.xml
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Humanizer.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.Bcl.AsyncInterfaces.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.Bcl.Cryptography.dll
@@ -22,10 +72,7 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.Data.SqlClient.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.Data.SqlClient.Extensions.Abstractions.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.Data.SqlClient.Internal.Logging.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Abstractions.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Design.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Relational.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.Extensions.DependencyModel.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
@@ -33,14 +80,8 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.OpenApi.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Microsoft.SqlServer.Server.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Mono.TextTemplating.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Npgsql.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Swashbuckle.AspNetCore.Swagger.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerGen.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerUI.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\System.CodeDom.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\System.Composition.AttributedModel.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\System.Composition.Convention.dll
@@ -147,10 +188,13 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\scopedcss\bundle\CrmLeadManagement.styles.css
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\srozkn5ze9-{0}-7hn809mq27-7hn809mq27.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\exfgbgrta9-{0}-r6rdmxtgdq-r6rdmxtgdq.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\k7o45bwfgp-{0}-suwbuh5niu-suwbuh5niu.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\1xaj5i8unf-{0}-lpxvb3r0lk-lpxvb3r0lk.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\k5bn9cy7mw-{0}-ol55iosmoc-ol55iosmoc.gz
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\c3e3f3eaq4-{0}-eahfvn5zyh-eahfvn5zyh.gz
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\fg7mid2yte-{0}-t4fl9qw70h-t4fl9qw70h.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\staticwebassets.build.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\staticwebassets.build.json.cache
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\staticwebassets.development.json
@@ -161,9 +205,9 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\refint\CrmLeadManagement.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.xml
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.pdb
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.deps.json
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.runtimeconfig.json
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.pdb
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.xml
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.genruntimeconfig.cache
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\ref\CrmLeadManagement.dll
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\VisionCRM_AppApi_Postman_Collection.json
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\srozkn5ze9-{0}-7hn809mq27-7hn809mq27.gz
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\c3e3f3eaq4-{0}-eahfvn5zyh-eahfvn5zyh.gz
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\fg7mid2yte-{0}-t4fl9qw70h-t4fl9qw70h.gz

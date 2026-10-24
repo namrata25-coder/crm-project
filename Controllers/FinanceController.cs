@@ -128,7 +128,16 @@ public class FinanceController : Controller
         ViewData["Title"] = "Estimation List";
         ViewData["ActivePage"] = "FinanceEstimation";
 
+        // Apply role‑based filtering: admins/managers see all, others only their assigned leads
+        var currentUser = PermissionChecker.GetCurrentUser(_db, User);
+        var isAdminOrManager = currentUser != null && PermissionChecker.IsAdminOrManager(User, currentUser);
+
         var rows = LeadStore.Leads
+            .Where(lead => isAdminOrManager ||
+                (lead.AssignedTo != null && currentUser != null &&
+                 (string.Equals(lead.AssignedTo.Trim(), currentUser.Name?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(lead.AssignedTo.Trim(), currentUser.Email?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(lead.AssignedTo.Trim(), currentUser.UserId?.Trim(), StringComparison.OrdinalIgnoreCase))))
             .SelectMany(lead => lead.Estimations.Select(e => new FinanceListRow
             {
                 LeadId = lead.LeadId,
@@ -288,7 +297,16 @@ public class FinanceController : Controller
         ViewData["Title"] = "Quotation List";
         ViewData["ActivePage"] = "FinanceQuotation";
 
+        // Apply role‑based filtering: admins/managers see all, others only their assigned leads
+        var currentUser = PermissionChecker.GetCurrentUser(_db, User);
+        var isAdminOrManager = currentUser != null && PermissionChecker.IsAdminOrManager(User, currentUser);
+
         var rows = LeadStore.Leads
+            .Where(lead => isAdminOrManager ||
+                (lead.AssignedTo != null && currentUser != null &&
+                 (string.Equals(lead.AssignedTo.Trim(), currentUser.Name?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(lead.AssignedTo.Trim(), currentUser.Email?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(lead.AssignedTo.Trim(), currentUser.UserId?.Trim(), StringComparison.OrdinalIgnoreCase))))
             .SelectMany(lead => lead.Quotations.Select(q => new FinanceListRow
             {
                 LeadId = lead.LeadId,
@@ -448,7 +466,16 @@ public class FinanceController : Controller
         ViewData["Title"] = "Proposal List";
         ViewData["ActivePage"] = "FinanceProposal";
 
+        // Apply role‑based filtering: admins/managers see all, others only their assigned leads
+        var currentUser = PermissionChecker.GetCurrentUser(_db, User);
+        var isAdminOrManager = currentUser != null && PermissionChecker.IsAdminOrManager(User, currentUser);
+
         var rows = LeadStore.Leads
+            .Where(lead => isAdminOrManager ||
+                (lead.AssignedTo != null && currentUser != null &&
+                 (string.Equals(lead.AssignedTo.Trim(), currentUser.Name?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(lead.AssignedTo.Trim(), currentUser.Email?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(lead.AssignedTo.Trim(), currentUser.UserId?.Trim(), StringComparison.OrdinalIgnoreCase))))
             .SelectMany(lead => lead.Proposals.Select(p => new FinanceListRow
             {
                 LeadId = lead.LeadId,

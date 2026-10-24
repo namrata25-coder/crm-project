@@ -309,32 +309,10 @@
                     <input type="text" id="newRoleName" class="form-input-custom" placeholder="e.g. Senior Sales Executive" required autocomplete="off" />
                 </div>
 
-                <!-- Description -->
-                <div class="form-group-custom">
-                    <label class="form-label-custom">Description (Optional)</label>
-                    <textarea id="newRoleDesc" class="form-input-custom" rows="2" placeholder="Briefly describe responsibilities of this role..."></textarea>
-                </div>
+                
+                
 
-                <!-- Copy Permissions From -->
-                <div class="form-group-custom">
-                    <label class="form-label-custom">Copy Permissions From</label>
-                    <select id="newRoleCopyFrom" class="form-input-custom">
-                        <option value="">Standard Default Template</option>
-                        @foreach (var r in Model.AllRoles)
-                        {
-                            <option value="@r.RoleName">Copy from: @r.RoleName</option>
-                        }
-                    </select>
-                </div>
-
-                <!-- Data Access Scope -->
-                <div class="form-group-custom">
-                    <label class="form-label-custom">Default Data Access Scope</label>
-                    <select id="newRoleDataAccess" class="form-input-custom">
-                        <option value="OnlyAssigned">Only my assigned records (Standard executive)</option>
-                        <option value="All">All records (Managerial / Departmental)</option>
-                    </select>
-                </div>
+                
             </div>
             <div class="modal-footer-custom">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalNewRole')">Cancel</button>
