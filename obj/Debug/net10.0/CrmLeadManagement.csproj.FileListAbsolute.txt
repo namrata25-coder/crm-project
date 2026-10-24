@@ -211,3 +211,4 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0\CrmLeadManagement.xml
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.genruntimeconfig.cache
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\ref\CrmLeadManagement.dll
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.sourcelink.json
