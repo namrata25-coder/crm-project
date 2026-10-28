@@ -11,13 +11,18 @@
 </head>
 <body>
     <div class="app-shell">
-        <aside class="sidebar">
+        <aside class="sidebar" id="appSidebar" aria-label="Main Navigation">
             <div class="sidebar-brand">
-                <div class="mark">V</div>
-                <div>
-                    <div class="name">VisionCRM</div>
-                    <div class="sub">Lead Management</div>
+                <div class="sidebar-brand-content">
+                    <div class="mark">V</div>
+                    <div>
+                        <div class="name">VisionCRM</div>
+                        <div class="sub">Lead Management</div>
+                    </div>
                 </div>
+                <button type="button" class="sidebar-close-btn" onclick="toggleSidebar(false)" aria-label="Close menu">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
 
 @inject CrmLeadManagement.Models.AppDbContext LayoutDb
@@ -204,11 +209,18 @@
             </div>
         </aside>
 
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar(false)" aria-hidden="true"></div>
+
         <div class="main-col">
             <header class="topbar">
-                <div class="search-box">
-                    <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search leads, companies, contacts..." />
+                <div class="topbar-left">
+                    <button type="button" class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" aria-label="Toggle navigation">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" placeholder="Search leads, companies, contacts..." />
+                    </div>
                 </div>
                 <div class="topbar-right">
                     <div class="topbar-icon"><i class="bi bi-bell"></i><span class="dot"></span></div>

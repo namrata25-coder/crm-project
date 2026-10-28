@@ -59,6 +59,8 @@ public class ProjectsApiController : ControllerBase
                 .Include(p => p.Milestones)
                     .ThenInclude(m => m.Tasks)
                 .Include(p => p.Tasks)
+                .Include(p => p.Invoices)
+                    .ThenInclude(i => i.Payments)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(status))

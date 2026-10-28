@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj": {}
+    "C:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj": {}
   },
   "projects": {
-    "c:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj": {
+    "C:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj",
+        "projectUniqueName": "C:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj",
         "projectName": "CrmLeadManagement",
-        "projectPath": "c:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj",
+        "projectPath": "C:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\CrmLeadManagement.csproj",
         "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\obj\\",
+        "outputPath": "C:\\Users\\admin\\Downloads\\deploy changes file\\CrmLeadManagement\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

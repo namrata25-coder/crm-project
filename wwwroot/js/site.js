@@ -57,9 +57,10 @@ document.addEventListener('click', function (e) {
   }
 });
 
-// Close modal with Escape key
+// Close modal or mobile sidebar with Escape key
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
+    if (typeof toggleSidebar === 'function') toggleSidebar(false);
     document.querySelectorAll('.modal-backdrop-custom').forEach(m => {
       m.style.display = 'none';
       m.classList.remove('show');
@@ -132,10 +133,43 @@ function clearLeadListFilters() {
   filterLeadListTable();
 }
 
-// Sidebar toggle for small screens
-function toggleSidebar() {
-  document.querySelector('.sidebar')?.classList.toggle('show-mobile');
+// Sidebar toggle for responsive / small screens
+function toggleSidebar(forceState) {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.querySelector('.sidebar-backdrop');
+  if (!sidebar) return;
+
+  const willOpen = (typeof forceState === 'boolean')
+    ? forceState
+    : !sidebar.classList.contains('show-mobile');
+
+  sidebar.classList.toggle('show-mobile', willOpen);
+  if (backdrop) {
+    backdrop.classList.toggle('show', willOpen);
+  }
+  document.body.classList.toggle('sidebar-open', willOpen);
 }
+window.toggleSidebar = toggleSidebar;
+
+// Auto-close sidebar on mobile/tablet when navigating via sidebar links or resizing to desktop
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.sidebar-nav a').forEach(function (link) {
+    link.addEventListener('click', function () {
+      if (window.innerWidth < 1024) {
+        toggleSidebar(false);
+      }
+    });
+  });
+
+  window.addEventListener('resize', function () {
+    if (window.innerWidth >= 1024) {
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar && sidebar.classList.contains('show-mobile')) {
+        toggleSidebar(false);
+      }
+    }
+  });
+});
 
 // ===== Add / Edit Lead modal (shared by Lead List and Assigned List) =====
 

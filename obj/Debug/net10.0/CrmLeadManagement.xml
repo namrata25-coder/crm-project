@@ -181,14 +181,13 @@
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppAuthController.UserLogin(CrmLeadManagement.Models.Dtos.App.AppLoginRequest)">
             <summary>
-            Dedicated User Login API endpoint.
-            Strictly verifies that the credentials belong to an authorized User account in the database.
-            Rejects Admin accounts with HTTP 403 Forbidden.
+            User Login API endpoint.
+            Authenticates users and administrators for the mobile application.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppAuthController.Login(CrmLeadManagement.Models.Dtos.App.AppLoginRequest)">
             <summary>
-            Authenticates a user with email and password, returning an opaque Bearer token.
+            Authenticates a user or administrator with email/user ID and password, returning an opaque Bearer token.
             Rate-limited to 10 requests per minute per IP.
             Supports /api/v1/app/auth/login, /api/auth/login, /auth/login, and /login for JSON requests.
             </summary>

@@ -188,12 +188,10 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\scopedcss\bundle\CrmLeadManagement.styles.css
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\srozkn5ze9-{0}-7hn809mq27-7hn809mq27.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\exfgbgrta9-{0}-r6rdmxtgdq-r6rdmxtgdq.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\k7o45bwfgp-{0}-suwbuh5niu-suwbuh5niu.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\1xaj5i8unf-{0}-lpxvb3r0lk-lpxvb3r0lk.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\k5bn9cy7mw-{0}-ol55iosmoc-ol55iosmoc.gz
-C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\c3e3f3eaq4-{0}-eahfvn5zyh-eahfvn5zyh.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\fg7mid2yte-{0}-t4fl9qw70h-t4fl9qw70h.gz
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\staticwebassets.build.json
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\staticwebassets.build.json.cache
@@ -212,3 +210,5 @@ C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\bin\Debug\net10.0
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.genruntimeconfig.cache
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\ref\CrmLeadManagement.dll
 C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\CrmLeadManagement.sourcelink.json
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\srozkn5ze9-{0}-myy9r08a3p-myy9r08a3p.gz
+C:\Users\admin\Downloads\deploy changes file\CrmLeadManagement\obj\Debug\net10.0\compressed\c3e3f3eaq4-{0}-tpoqv7z7ij-tpoqv7z7ij.gz

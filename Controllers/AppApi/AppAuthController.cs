@@ -55,9 +55,8 @@ public class AppAuthController : ControllerBase
     }
 
     /// <summary>
-    /// Dedicated User Login API endpoint.
-    /// Strictly verifies that the credentials belong to an authorized User account in the database.
-    /// Rejects Admin accounts with HTTP 403 Forbidden.
+    /// User Login API endpoint.
+    /// Authenticates users and administrators for the mobile application.
     /// </summary>
     [HttpPost("user-login")]
     [Consumes("application/json")]
@@ -65,12 +64,11 @@ public class AppAuthController : ControllerBase
     [EnableRateLimiting("AuthRateLimit")]
     public async Task<IActionResult> UserLogin([FromBody] AppLoginRequest request)
     {
-        request.Role = "user";
-        return await ExecuteLogin(request, requiredRole: "user");
+        return await ExecuteLogin(request, requiredRole: null);
     }
 
     /// <summary>
-    /// Authenticates a user with email and password, returning an opaque Bearer token.
+    /// Authenticates a user or administrator with email/user ID and password, returning an opaque Bearer token.
     /// Rate-limited to 10 requests per minute per IP.
     /// Supports /api/v1/app/auth/login, /api/auth/login, /auth/login, and /login for JSON requests.
     /// </summary>
@@ -100,21 +98,15 @@ public class AppAuthController : ControllerBase
             return BadRequest(new AppApiError { Message = msg });
         }
 
+        bool isAdminId = string.Equals(input, "admin", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(input, "admin@visioncrm.com", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(input, "admin@nimbuscrm.com", StringComparison.OrdinalIgnoreCase);
+
         // =====================================================================
-        // 1. ADMIN LOGIN API
+        // 1. DEFAULT ADMIN CREDENTIALS (admin / admin123)
         // =====================================================================
-        if (string.Equals(requiredRole, "admin", StringComparison.OrdinalIgnoreCase))
+        if (isAdminId && password == "admin123")
         {
-            bool isAdminId = string.Equals(input, "admin", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(input, "admin@visioncrm.com", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(input, "admin@nimbuscrm.com", StringComparison.OrdinalIgnoreCase);
-
-            if (!isAdminId || password != "admin123")
-            {
-                _logger.LogWarning("Admin API login failed for {Input} from IP {IP}", input, ip);
-                return Unauthorized(new AppApiError { Message = "Invalid Admin ID or Password." });
-            }
-
             var adminUser = await _db.Users.FirstOrDefaultAsync(u =>
                 (u.UserId != null && u.UserId.ToLower() == "admin") ||
                 (u.Email != null && (u.Email.ToLower() == "admin" || u.Email.ToLower() == "admin@visioncrm.com" || u.Email.ToLower() == "admin@nimbuscrm.com")) ||
@@ -155,6 +147,8 @@ public class AppAuthController : ControllerBase
 
             var (adminPlainToken, adminExpiresAt) = await _tokenService.IssueTokenAsync(adminUser.Id, request.DeviceId);
 
+            _logger.LogInformation("Successful Admin login for {Input} from IP: {IP}, Device: {Device}", input, ip, request.DeviceId);
+
             return Ok(new AppLoginResponse
             {
                 Token = adminPlainToken,
@@ -171,21 +165,8 @@ public class AppAuthController : ControllerBase
         }
 
         // =====================================================================
-        // 2. USER LOGIN API
+        // 2. DATABASE USER / ADMIN LOOKUP & AUTHENTICATION
         // =====================================================================
-        bool isAdminInput = string.Equals(input, "admin", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(input, "admin@visioncrm.com", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(input, "admin@nimbuscrm.com", StringComparison.OrdinalIgnoreCase);
-
-        if (isAdminInput && password == "admin123")
-        {
-            _logger.LogWarning("Admin credentials entered on User API login from IP {IP}", ip);
-            return StatusCode(StatusCodes.Status403Forbidden, new AppApiError
-            {
-                Message = "Access denied. Administrator credentials cannot be used on the User Login portal. Please use the Admin Portal."
-            });
-        }
-
         int.TryParse(input, out var numericId);
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             (u.UserId != null && u.UserId.ToLower() == input.ToLower()) ||
@@ -196,15 +177,19 @@ public class AppAuthController : ControllerBase
         if (user == null)
         {
             _logger.LogWarning("Failed login for unknown User ID/Email: {Input} from IP: {IP}", input, ip);
-            return Unauthorized(new AppApiError { Message = "Invalid User ID or Password." });
+            var notFoundMsg = string.Equals(requiredRole, "admin", StringComparison.OrdinalIgnoreCase)
+                ? "Invalid Admin ID or Password."
+                : "Invalid User ID or Password.";
+            return Unauthorized(new AppApiError { Message = notFoundMsg });
         }
 
-        if (user.IsAdminAccount)
+        // If hitting dedicated admin endpoint, ensure the account has Admin authority
+        if (string.Equals(requiredRole, "admin", StringComparison.OrdinalIgnoreCase) && !user.IsAdminAccount)
         {
-            _logger.LogWarning("User API login rejected for Admin account {Email} from IP: {IP}", user.Email, ip);
+            _logger.LogWarning("Admin API login rejected for non-admin user {Email} from IP {IP}", user.Email, ip);
             return StatusCode(StatusCodes.Status403Forbidden, new AppApiError
             {
-                Message = "Access denied. Administrator credentials cannot be used on the User Login portal. Please use the Admin Portal."
+                Message = "Access denied. Valid Admin credentials are required."
             });
         }
 
@@ -254,7 +239,7 @@ public class AppAuthController : ControllerBase
 
         var (plainToken, expiresAt) = await _tokenService.IssueTokenAsync(user.Id, request.DeviceId);
 
-        _logger.LogInformation("Successful login for user {UserId} ({Email}) from IP: {IP}, Device: {Device}", user.Id, user.Email, ip, request.DeviceId);
+        _logger.LogInformation("Successful login for user {UserId} ({Email}, Role: {Role}) from IP: {IP}, Device: {Device}", user.Id, user.Email, user.Role, ip, request.DeviceId);
 
         return Ok(new AppLoginResponse
         {
@@ -396,11 +381,82 @@ public class AppAuthController : ControllerBase
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting("AuthRateLimit")]
-    public Task<IActionResult> Register([FromBody] AppRegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] AppRegisterRequest request)
     {
-        return Task.FromResult<IActionResult>(StatusCode(StatusCodes.Status403Forbidden, new AppApiError
+        var registrationMode = _configuration.GetValue<string>("Auth:RegistrationMode") ?? "Disabled";
+        if (string.Equals(registrationMode, "Disabled", StringComparison.OrdinalIgnoreCase))
         {
-            Message = "Registration is disabled. Please contact your administrator for account creation."
-        }));
+            return StatusCode(StatusCodes.Status403Forbidden, new AppApiError { Message = "Registration is currently disabled." });
+        }
+
+        var name = request.Name?.Trim() ?? "";
+        var email = request.Email?.Trim() ?? "";
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email))
+        {
+            return BadRequest(new AppApiError { Message = "Name and email are required." });
+        }
+
+        if (await _db.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == email.ToLower()))
+        {
+            return Conflict(new AppApiError { Message = "A user with this email address already exists." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password) ||
+            request.Password.Length < 8 ||
+            !request.Password.Any(char.IsLetter) ||
+            !request.Password.Any(char.IsDigit))
+        {
+            return BadRequest(new AppApiError
+            {
+                Message = "Password must be at least 8 characters long and contain at least one letter and one number."
+            });
+        }
+
+        var adminSeedPw = _configuration["Seed:AdminPassword"]?.Trim() ?? "AdminPassword123!";
+        if (string.Equals(request.Password.Trim(), adminSeedPw, StringComparison.Ordinal))
+        {
+            return BadRequest(new AppApiError
+            {
+                Message = "User password must be different from the administrator password."
+            });
+        }
+
+        // Prevent self-escalation: End-users can NEVER register as Admin
+        if (!string.IsNullOrWhiteSpace(request.Role) &&
+            (string.Equals(request.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(request.Role, "Super Admin", StringComparison.OrdinalIgnoreCase)))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new AppApiError
+            {
+                Message = "Access denied: Users cannot register or assign themselves the Admin role."
+            });
+        }
+
+        var status = string.Equals(registrationMode, "ApprovalRequired", StringComparison.OrdinalIgnoreCase)
+            ? "Inactive"
+            : "Active";
+
+        var newUser = new UserRoleEntry
+        {
+            Name = name,
+            Email = email,
+            Role = "Sales Executive",
+            Status = status,
+            IsAuthorizedUser = true
+        };
+
+        newUser.PasswordHash = _passwordHasher.HashPassword(newUser, request.Password);
+
+        _db.Users.Add(newUser);
+        await _db.SaveChangesAsync();
+
+        return Ok(new AppUserProfileDto
+        {
+            Id = newUser.Id,
+            Name = newUser.Name,
+            Email = newUser.Email,
+            Role = newUser.Role
+        });
     }
 }

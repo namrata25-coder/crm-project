@@ -778,6 +778,35 @@ public class WorkController : Controller
         if (project is null)
             return RedirectToAction(nameof(Projects));
 
+        bool isTaskBased = string.Equals(project.ProjectType, "Task Based Project", StringComparison.OrdinalIgnoreCase) ||
+                           (project.ProjectType != null && project.ProjectType.Contains("Task", StringComparison.OrdinalIgnoreCase));
+
+        bool isMilestoneBased = string.Equals(project.ProjectType, "Milestone Based Project", StringComparison.OrdinalIgnoreCase) ||
+                               (project.ProjectType != null && project.ProjectType.Contains("Milestone", StringComparison.OrdinalIgnoreCase));
+
+        if (invoiceId == 0)
+        {
+            if (isTaskBased)
+            {
+                TempData["Error"] = "Task Based projects invoices must be created from Finance > Invoice.";
+                return RedirectToAction(nameof(ProjectDetails), new { id = projectId, tab = "invoice" });
+            }
+
+            if (isMilestoneBased)
+            {
+                if (!milestoneId.HasValue || milestoneId.Value <= 0)
+                {
+                    TempData["Error"] = "Milestone is required for Milestone Based projects.";
+                    return RedirectToAction(nameof(ProjectDetails), new { id = projectId, tab = "invoice" });
+                }
+            }
+            else
+            {
+                // Direct Project
+                milestoneId = null;
+            }
+        }
+
         WorkMilestone? milestone = null;
         if (milestoneId.HasValue && milestoneId.Value > 0)
         {
