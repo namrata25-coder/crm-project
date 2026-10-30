@@ -1113,7 +1113,7 @@
         invoices.forEach(inv => {
             const id = inv.id;
             const invNum = inv.invoiceNumber || `INV-${id}`;
-            const client = inv.clientCompany || inv.clientName || '—';
+            const client = inv.clientName || inv.clientCompany || '—';
             const proj = inv.projectName || '—';
             const milestone = inv.milestoneName || '—';
             const invDate = inv.invoiceDate || '—';

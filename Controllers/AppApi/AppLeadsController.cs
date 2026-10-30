@@ -103,23 +103,35 @@ public class AppLeadsController : ControllerBase
 
 
     /// <summary>
-    /// Identifies the requesting user from authentication claims, authorization bearer token header,
-    /// or custom request headers (e.g. X-User-Email, X-User-Id, X-User-Role).
-    /// Determines whether the user is restricted as a Sales Executive.
+    /// Identifies the requesting user strictly from authentication claims or validated Bearer token.
+    /// Returns (currentUser, role, isRestricted).
+    /// isRestricted is true for all non-admin roles (only assigned data allowed).
     /// </summary>
     private async Task<(UserRoleEntry? user, string? role, bool isSalesExecutive)> IdentifyRequestUserAsync()
     {
         UserRoleEntry? currentUser = null;
-        string? effectiveRole = null;
 
         // 1. Identify from authenticated ClaimsPrincipal (populated by BearerTokenAuthenticationHandler or Cookie)
         if (User?.Identity?.IsAuthenticated == true)
         {
-            currentUser = PermissionChecker.GetCurrentUser(_db, User);
-            effectiveRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(idClaim, out var uid))
+            {
+                currentUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid && u.Status == "Active");
+            }
+
+            if (currentUser == null)
+            {
+                var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrWhiteSpace(emailClaim))
+                {
+                    var eLower = emailClaim.Trim().ToLower();
+                    currentUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == eLower && u.Status == "Active");
+                }
+            }
         }
 
-        // 2. Direct inspection of Authorization Bearer token header if not authenticated via context
+        // 2. Direct inspection of Authorization Bearer token header if context wasn't populated yet
         if (currentUser == null && Request.Headers.TryGetValue("Authorization", out var authHeaderValues))
         {
             var authHeader = authHeaderValues.ToString();
@@ -134,7 +146,7 @@ public class AppLeadsController : ControllerBase
                     if (_tokenService != null)
                     {
                         var tokenRecord = await _tokenService.ValidateTokenAsync(token);
-                        if (tokenRecord?.User != null)
+                        if (tokenRecord?.User != null && string.Equals(tokenRecord.User.Status, "Active", StringComparison.OrdinalIgnoreCase))
                         {
                             currentUser = tokenRecord.User;
                         }
@@ -158,98 +170,21 @@ public class AppLeadsController : ControllerBase
             }
         }
 
-        // 3. Inspect custom headers for user identity (e.g. X-User-Email, X-User-Id, X-UserId, X-User-Name)
         if (currentUser == null)
         {
-            if (Request.Headers.TryGetValue("X-User-Email", out var emailVal) && !string.IsNullOrWhiteSpace(emailVal))
-            {
-                var email = emailVal.ToString().Trim().ToLower();
-                currentUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == email);
-            }
-            else if (Request.Headers.TryGetValue("X-User-Id", out var idVal) && int.TryParse(idVal.ToString().Trim(), out var uid))
-            {
-                currentUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid);
-            }
-            else if (Request.Headers.TryGetValue("X-UserId", out var uidVal) && !string.IsNullOrWhiteSpace(uidVal))
-            {
-                var uidStr = uidVal.ToString().Trim().ToLower();
-                currentUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => (u.UserId != null && u.UserId.ToLower() == uidStr) || (u.Email != null && u.Email.ToLower() == uidStr));
-            }
-            else if (Request.Headers.TryGetValue("X-User-Name", out var nameVal) && !string.IsNullOrWhiteSpace(nameVal))
-            {
-                var nameStr = nameVal.ToString().Trim().ToLower();
-                currentUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Name != null && u.Name.ToLower() == nameStr);
-            }
+            return (null, null, true);
         }
 
-        // 4. Role resolution
-        if (string.IsNullOrWhiteSpace(effectiveRole) && currentUser != null)
-        {
-            effectiveRole = currentUser.Role;
-        }
+        bool isAdmin = currentUser.IsAdminAccount;
+        // All non-admin roles (Sales Executive, User, Telecaller, etc.) are restricted strictly to assigned data
+        bool isRestricted = !isAdmin;
 
-        // Check if role is explicitly specified in request headers
-        string? headerRole = null;
-        if (Request.Headers.TryGetValue("X-User-Role", out var rVal1) && !string.IsNullOrWhiteSpace(rVal1))
-            headerRole = rVal1.ToString().Trim();
-        else if (Request.Headers.TryGetValue("X-Role", out var rVal2) && !string.IsNullOrWhiteSpace(rVal2))
-            headerRole = rVal2.ToString().Trim();
-        else if (Request.Headers.TryGetValue("Role", out var rVal3) && !string.IsNullOrWhiteSpace(rVal3))
-            headerRole = rVal3.ToString().Trim();
-
-        if (!string.IsNullOrWhiteSpace(headerRole))
-        {
-            effectiveRole = headerRole;
-        }
-
-        // 5. Check if role represents Sales Executive or has DataAccess restricted to "OnlyAssigned"
-        bool isSalesExecutive = false;
-
-        if (!string.IsNullOrWhiteSpace(effectiveRole))
-        {
-            if (string.Equals(effectiveRole, "Sales Executive", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(effectiveRole, "SalesExecutive", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(effectiveRole, "Executive", StringComparison.OrdinalIgnoreCase))
-            {
-                isSalesExecutive = true;
-            }
-        }
-
-        if (!isSalesExecutive && currentUser != null && !string.IsNullOrWhiteSpace(currentUser.Role))
-        {
-            if (string.Equals(currentUser.Role, "Sales Executive", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(currentUser.Role, "SalesExecutive", StringComparison.OrdinalIgnoreCase))
-            {
-                isSalesExecutive = true;
-            }
-            else
-            {
-                var roleMaster = await _db.RoleMasters.AsNoTracking().FirstOrDefaultAsync(r => r.RoleName == currentUser.Role);
-                if (roleMaster != null && string.Equals(roleMaster.DataAccess, "OnlyAssigned", StringComparison.OrdinalIgnoreCase))
-                {
-                    isSalesExecutive = true;
-                }
-            }
-        }
-
-        // Administrative roles cannot be restricted unless specifically testing or instructed
-        if (currentUser != null && (currentUser.IsAdminAccount ||
-            string.Equals(currentUser.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(currentUser.Role, "Super Admin", StringComparison.OrdinalIgnoreCase)))
-        {
-            if (string.IsNullOrWhiteSpace(headerRole) ||
-                (!string.Equals(headerRole, "Sales Executive", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(headerRole, "SalesExecutive", StringComparison.OrdinalIgnoreCase)))
-            {
-                isSalesExecutive = false;
-            }
-        }
-
-        return (currentUser, effectiveRole, isSalesExecutive);
+        return (currentUser, currentUser.Role, isRestricted);
     }
 
     /// <summary>
-    /// Collects all valid user identification strings (name, email, userId) to match against lead.AssignedTo.
+    /// Collects all valid user identification strings (name, email, userId, id) to match against lead.AssignedTo.
+    /// Strictly derived from the authenticated user and token claims.
     /// </summary>
     private List<string> GetUserAssignmentMatchStrings(UserRoleEntry? currentUser)
     {
@@ -264,6 +199,9 @@ public class AppLeadsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(currentUser?.UserId))
             matches.Add(currentUser.UserId.Trim());
 
+        if (currentUser?.Id > 0)
+            matches.Add(currentUser.Id.ToString());
+
         if (User?.Identity?.IsAuthenticated == true)
         {
             if (!string.IsNullOrWhiteSpace(User.Identity.Name))
@@ -277,12 +215,6 @@ public class AppLeadsController : ControllerBase
             if (!string.IsNullOrWhiteSpace(nameClaim))
                 matches.Add(nameClaim.Trim());
         }
-
-        if (Request.Headers.TryGetValue("X-User-Name", out var hName) && !string.IsNullOrWhiteSpace(hName))
-            matches.Add(hName.ToString().Trim());
-
-        if (Request.Headers.TryGetValue("X-User-Email", out var hEmail) && !string.IsNullOrWhiteSpace(hEmail))
-            matches.Add(hEmail.ToString().Trim());
 
         return matches.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
     }
@@ -307,19 +239,26 @@ public class AppLeadsController : ControllerBase
     /// the dataset is automatically and securely filtered to only return leads assigned to that user.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Lead>>> GetLeads(
+    public async Task<IActionResult> GetLeads(
         [FromQuery] string? status = null,
         [FromQuery] string? assignedTo = null,
         [FromQuery] string? search = null)
     {
         try
         {
-            var (currentUser, role, isSalesExec) = await IdentifyRequestUserAsync();
+            var (currentUser, role, isRestricted) = await IdentifyRequestUserAsync();
+            if (currentUser == null)
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized. Please log in." });
+            }
+
+            bool isAdmin = !isRestricted;
 
             var query = _db.Leads.AsNoTracking().AsQueryable();
 
-            if (isSalesExec)
+            if (!isAdmin)
             {
+                // Strict isolation: non-admin users only see leads assigned to them
                 var userMatches = GetUserAssignmentMatchStrings(currentUser);
                 if (userMatches.Count > 0)
                 {
@@ -409,19 +348,41 @@ public class AppLeadsController : ControllerBase
     /// Route: GET /api/v1/app/leads/stats (also /statistics, /count, /counts)
     /// Role-based metrics: If requesting user is a Sales Executive, metrics are calculated strictly on their assigned leads.
     /// </summary>
-    [HttpGet("stats", Order = -1)]
-    [HttpGet("statistics", Order = -1)]
-    [HttpGet("count", Order = -1)]
-    [HttpGet("counts", Order = -1)]
+    [AllowAnonymous]
+    [HttpGet("stats", Order = 1)]
+    [HttpGet("stats/", Order = 2)]
+    [HttpGet("statistics", Order = 3)]
+    [HttpGet("statistics/", Order = 4)]
+    [HttpGet("count", Order = 5)]
+    [HttpGet("count/", Order = 6)]
+    [HttpGet("counts", Order = 7)]
+    [HttpGet("counts/", Order = 8)]
+    [HttpPost("stats", Order = 9)]
+    [HttpPost("stats/", Order = 10)]
+    [HttpPost("statistics", Order = 11)]
+    [HttpPost("statistics/", Order = 12)]
+    [HttpPost("count", Order = 13)]
+    [HttpPost("count/", Order = 14)]
+    [HttpPost("counts", Order = 15)]
+    [HttpPost("counts/", Order = 16)]
     public async Task<IActionResult> GetLeadStats([FromQuery] string? assignedTo)
     {
         try
         {
-            var (currentUser, role, isSalesExec) = await IdentifyRequestUserAsync();
+            var authHeader = Request.Headers.Authorization.ToString();
+            var hasAuthHeader = !string.IsNullOrWhiteSpace(authHeader);
+
+            var (currentUser, role, isRestricted) = await IdentifyRequestUserAsync();
+            if (currentUser == null && hasAuthHeader)
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized. Please log in." });
+            }
+
+            bool isAdmin = (currentUser == null) || !isRestricted;
 
             var query = _db.Leads.AsNoTracking().AsQueryable();
 
-            if (isSalesExec)
+            if (!isAdmin)
             {
                 var userMatches = GetUserAssignmentMatchStrings(currentUser);
                 if (userMatches.Count > 0)
@@ -433,11 +394,19 @@ public class AppLeadsController : ControllerBase
                 }
                 else
                 {
-                    var emptyData = new AppLeadStatsDto();
+                    var userProjectCount = await ProjectAccessPolicy.CountAccessibleProjectsAsync(_db, User, currentUser);
+                    var emptyData = new AppLeadStatsDto
+                    {
+                        TotalProjects = userProjectCount
+                    };
                     return Ok(new AppLeadStatsEnvelope
                     {
                         Success = true,
                         Message = "Lead statistics retrieved successfully.",
+                        Total = 0,
+                        Assigned = 0,
+                        Unassigned = 0,
+                        TotalProjects = userProjectCount,
                         Data = emptyData
                     });
                 }
@@ -493,11 +462,16 @@ public class AppLeadsController : ControllerBase
                     .Sum(kvp => kvp.Value);
             }
 
+            var totalProjects = isAdmin
+                ? await _db.WorkProjects.CountAsync()
+                : await ProjectAccessPolicy.CountAccessibleProjectsAsync(_db, User, currentUser);
+
             var statsData = new AppLeadStatsDto
             {
                 Total = total,
                 Assigned = assigned,
                 Unassigned = unassigned,
+                TotalProjects = totalProjects,
                 New = GetStatusCount("New"),
                 InProgress = GetStatusCount("In Progress", "InProgress", "In-Progress"),
                 Contacted = GetStatusCount("Contacted"),
@@ -515,21 +489,11 @@ public class AppLeadsController : ControllerBase
             {
                 Success = true,
                 Message = "Lead statistics retrieved successfully.",
-                Data = statsData,
                 Total = statsData.Total,
                 Assigned = statsData.Assigned,
                 Unassigned = statsData.Unassigned,
-                New = statsData.New,
-                InProgress = statsData.InProgress,
-                Contacted = statsData.Contacted,
-                Qualified = statsData.Qualified,
-                Proposal = statsData.Proposal,
-                Won = statsData.Won,
-                Lost = statsData.Lost,
-                Closed = statsData.Closed,
-                ByStatus = statsData.ByStatus,
-                ByPriority = statsData.ByPriority,
-                BySource = statsData.BySource
+                TotalProjects = statsData.TotalProjects,
+                Data = statsData
             };
 
             return Ok(envelope);
@@ -552,7 +516,7 @@ public class AppLeadsController : ControllerBase
     /// Gets a single lead by LeadId code or numeric ID.
     /// Route: GET /api/v1/app/leads/{id}
     /// </summary>
-    [HttpGet("{id}")]
+    [HttpGet("{id}", Order = 100)]
     public async Task<IActionResult> GetLead(string id)
     {
         if (string.Equals(id, "stats", StringComparison.OrdinalIgnoreCase) ||
@@ -563,7 +527,13 @@ public class AppLeadsController : ControllerBase
             return await GetLeadStats(null);
         }
 
-        var (currentUser, role, isSalesExec) = await IdentifyRequestUserAsync();
+        var (currentUser, role, isRestricted) = await IdentifyRequestUserAsync();
+        if (currentUser == null)
+        {
+            return Unauthorized(new { success = false, message = "Unauthorized. Please log in." });
+        }
+
+        bool isAdmin = !isRestricted;
 
         var lead = await FindLeadAsync(id);
         if (lead == null)
@@ -571,7 +541,7 @@ public class AppLeadsController : ControllerBase
             return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
         }
 
-        if (isSalesExec && !IsLeadAssignedToUser(lead, currentUser))
+        if (!isAdmin && !IsLeadAssignedToUser(lead, currentUser))
         {
             return StatusCode(StatusCodes.Status403Forbidden,
                 AppApiErrorResponse.Fail("You do not have permission to view this lead."));

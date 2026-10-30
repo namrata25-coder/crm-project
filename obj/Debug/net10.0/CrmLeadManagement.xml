@@ -232,14 +232,15 @@
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.IdentifyRequestUserAsync">
             <summary>
-            Identifies the requesting user from authentication claims, authorization bearer token header,
-            or custom request headers (e.g. X-User-Email, X-User-Id, X-User-Role).
-            Determines whether the user is restricted as a Sales Executive.
+            Identifies the requesting user strictly from authentication claims or validated Bearer token.
+            Returns (currentUser, role, isRestricted).
+            isRestricted is true for all non-admin roles (only assigned data allowed).
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.GetUserAssignmentMatchStrings(CrmLeadManagement.Models.UserRoleEntry)">
             <summary>
-            Collects all valid user identification strings (name, email, userId) to match against lead.AssignedTo.
+            Collects all valid user identification strings (name, email, userId, id) to match against lead.AssignedTo.
+            Strictly derived from the authenticated user and token claims.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppLeadsController.IsLeadAssignedToUser(CrmLeadManagement.Models.Lead,CrmLeadManagement.Models.UserRoleEntry)">
@@ -1005,7 +1006,7 @@
         </member>
         <member name="T:CrmLeadManagement.Models.Dtos.App.AppLeadStatsEnvelope">
             <summary>
-            Hybrid envelope supporting both flat keys and standard 'data' envelope.
+            Response envelope for /api/v1/app/leads/stats.
             </summary>
         </member>
         <member name="T:CrmLeadManagement.Models.Dtos.App.AppProjectInputDto">

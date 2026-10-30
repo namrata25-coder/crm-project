@@ -48,19 +48,87 @@ public static class ProjectAccessPolicy
         IEnumerable<WorkProject> projects)
     {
         var user = PermissionChecker.GetCurrentUser(db, principal);
+        return FilterAccessible(db, principal, user, projects);
+    }
+
+    public static List<WorkProject> FilterAccessible(
+        AppDbContext db,
+        ClaimsPrincipal? principal,
+        UserRoleEntry? user,
+        IEnumerable<WorkProject> projects)
+    {
+        user ??= PermissionChecker.GetCurrentUser(db, principal);
         if (PermissionChecker.IsAdminOrManager(principal, user)) return projects.ToList();
         if (user is null) return new List<WorkProject>();
 
-        var identities = new[] { user.Name, user.Email, user.UserId }
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value!.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(user.Name)) identities.Add(user.Name.Trim());
+        if (!string.IsNullOrWhiteSpace(user.Email)) identities.Add(user.Email.Trim());
+        if (!string.IsNullOrWhiteSpace(user.UserId)) identities.Add(user.UserId.Trim());
+
+        if (principal?.Identity?.IsAuthenticated == true)
+        {
+            if (!string.IsNullOrWhiteSpace(principal.Identity.Name))
+                identities.Add(principal.Identity.Name.Trim());
+
+            var emailClaim = principal.FindFirst(ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrWhiteSpace(emailClaim))
+                identities.Add(emailClaim.Trim());
+        }
 
         return projects.Where(project =>
             (!string.IsNullOrWhiteSpace(project.ProjectManager) &&
              identities.Contains(project.ProjectManager.Trim())) ||
-            (project.AssignedMembers ?? "")
-                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Any(identities.Contains)).ToList();
+            (!string.IsNullOrWhiteSpace(project.AssignedMembers) &&
+             project.AssignedMembers
+                 .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                 .Any(identities.Contains))).ToList();
+    }
+
+    public static async Task<int> CountAccessibleProjectsAsync(
+        AppDbContext db,
+        ClaimsPrincipal? principal,
+        UserRoleEntry? user = null)
+    {
+        user ??= PermissionChecker.GetCurrentUser(db, principal);
+        if (PermissionChecker.IsAdminOrManager(principal, user))
+        {
+            return await db.WorkProjects.CountAsync();
+        }
+        if (user is null) return 0;
+
+        var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(user.Name)) identities.Add(user.Name.Trim());
+        if (!string.IsNullOrWhiteSpace(user.Email)) identities.Add(user.Email.Trim());
+        if (!string.IsNullOrWhiteSpace(user.UserId)) identities.Add(user.UserId.Trim());
+
+        if (principal?.Identity?.IsAuthenticated == true)
+        {
+            if (!string.IsNullOrWhiteSpace(principal.Identity.Name))
+                identities.Add(principal.Identity.Name.Trim());
+
+            var emailClaim = principal.FindFirst(ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrWhiteSpace(emailClaim))
+                identities.Add(emailClaim.Trim());
+        }
+
+        if (identities.Count == 0) return 0;
+
+        var projects = await db.WorkProjects
+            .AsNoTracking()
+            .Select(p => new
+            {
+                p.ProjectManager,
+                p.AssignedMembers
+            })
+            .ToListAsync();
+
+        return projects.Count(p =>
+            (!string.IsNullOrWhiteSpace(p.ProjectManager) &&
+             identities.Contains(p.ProjectManager.Trim())) ||
+            (!string.IsNullOrWhiteSpace(p.AssignedMembers) &&
+             p.AssignedMembers
+                 .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                 .Any(identities.Contains)));
     }
 }

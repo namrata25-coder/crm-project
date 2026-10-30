@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CrmLeadManagement")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f2fc9505a3d122b5207ef25e2a266213ca8ebea1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+de98eea3d2e988cd4e7ea19159d30c4239be537f")]
 [assembly: System.Reflection.AssemblyProductAttribute("CrmLeadManagement")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CrmLeadManagement")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

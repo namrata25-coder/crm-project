@@ -805,7 +805,7 @@
                                 var rem = inv.RemainingAmount > 0 ? inv.RemainingAmount : (inv.PaymentStatus == "Paid" ? 0 : inv.GrandTotal);
                                 var msName = inv.Milestone?.MilestoneName ?? (inv.MilestoneId.HasValue ? Model.Milestones.FirstOrDefault(m => m.Id == inv.MilestoneId.Value)?.MilestoneName ?? $"Milestone #{inv.MilestoneId}" : "Project Direct");
                                 var msCode = inv.Milestone?.MilestoneCode ?? (inv.MilestoneId.HasValue ? Model.Milestones.FirstOrDefault(m => m.Id == inv.MilestoneId.Value)?.MilestoneCode ?? "MLS" : "PRJ");
-                                var clientStr = !string.IsNullOrWhiteSpace(inv.ClientCompany) ? inv.ClientCompany : (!string.IsNullOrWhiteSpace(inv.ClientName) ? inv.ClientName : Model.ClientCompany);
+                                var clientStr = !string.IsNullOrWhiteSpace(inv.ClientName) ? inv.ClientName : (!string.IsNullOrWhiteSpace(inv.ClientCompany) ? inv.ClientCompany : Model.ClientName);
                                 var dynStatus = inv.CalculatedStatus;
 
                                 <tr class="project-inv-row" data-number="@inv.InvoiceNumber" data-client="@clientStr" data-milestone="@msName" data-status="@dynStatus" style="border-bottom:1px solid var(--line);">
