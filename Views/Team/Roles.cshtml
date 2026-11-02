@@ -309,10 +309,32 @@
                     <input type="text" id="newRoleName" class="form-input-custom" placeholder="e.g. Senior Sales Executive" required autocomplete="off" />
                 </div>
 
-                
-                
+                <!-- Description -->
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Description (Optional)</label>
+                    <textarea id="newRoleDesc" class="form-input-custom" rows="2" placeholder="Briefly describe responsibilities of this role..."></textarea>
+                </div>
 
-                
+                <!-- Copy Permissions From -->
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Copy Permissions From</label>
+                    <select id="newRoleCopyFrom" class="form-input-custom">
+                        <option value="">Standard Default Template</option>
+                        @foreach (var r in Model.AllRoles)
+                        {
+                            <option value="@r.RoleName">Copy from: @r.RoleName</option>
+                        }
+                    </select>
+                </div>
+
+                <!-- Data Access Scope -->
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Default Data Access Scope</label>
+                    <select id="newRoleDataAccess" class="form-input-custom">
+                        <option value="OnlyAssigned">Only my assigned records (Standard executive)</option>
+                        <option value="All">All records (Managerial / Departmental)</option>
+                    </select>
+                </div>
             </div>
             <div class="modal-footer-custom">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalNewRole')">Cancel</button>
@@ -1386,25 +1408,27 @@ document.addEventListener("keydown", function(e) {
 });
 
 function openNewRoleModal() {
-    document.getElementById("newRoleName").value = "";
-    document.getElementById("newRoleDesc").value = "";
+    const nameInp = document.getElementById("newRoleName");
+    if (nameInp) nameInp.value = "";
+    const descInp = document.getElementById("newRoleDesc");
+    if (descInp) descInp.value = "";
     const copySelect = document.getElementById("newRoleCopyFrom");
     if (copySelect) copySelect.value = currentRole || "";
     const dataAccess = document.getElementById("newRoleDataAccess");
     if (dataAccess) dataAccess.value = "OnlyAssigned";
+
     openModal("modalNewRole");
     setTimeout(() => {
-        const inp = document.getElementById("newRoleName");
-        if (inp) inp.focus();
+        if (nameInp) nameInp.focus();
     }, 100);
 }
 
 async function submitNewRole(e) {
     e.preventDefault();
-    const roleName = document.getElementById("newRoleName").value.trim();
-    const description = document.getElementById("newRoleDesc").value.trim();
-    const copyFrom = document.getElementById("newRoleCopyFrom").value;
-    const dataAccess = document.getElementById("newRoleDataAccess").value;
+    const roleName = document.getElementById("newRoleName") ? document.getElementById("newRoleName").value.trim() : "";
+    const description = document.getElementById("newRoleDesc") ? document.getElementById("newRoleDesc").value.trim() : "";
+    const copyFrom = document.getElementById("newRoleCopyFrom") ? document.getElementById("newRoleCopyFrom").value : "";
+    const dataAccess = document.getElementById("newRoleDataAccess") ? document.getElementById("newRoleDataAccess").value : "OnlyAssigned";
 
     if (!roleName) {
         alert("Please enter a role name.");
@@ -1471,12 +1495,13 @@ function openRenameRoleModal() {
         alert("System roles (Admin, Super Admin) cannot be renamed.");
         return;
     }
-    document.getElementById("renameRoleCurrent").value = currentRole;
-    document.getElementById("renameRoleNew").value = currentRole;
+    const curInp = document.getElementById("renameRoleCurrent");
+    if (curInp) curInp.value = currentRole;
+    const newInp = document.getElementById("renameRoleNew");
+    if (newInp) newInp.value = currentRole;
     openModal("modalRenameRole");
     setTimeout(() => {
-        const inp = document.getElementById("renameRoleNew");
-        if (inp) { inp.focus(); inp.select(); }
+        if (newInp) { newInp.focus(); newInp.select(); }
     }, 100);
 }
 

@@ -2407,7 +2407,7 @@
                         <!-- Task Amount Field -->
                         <div id="projTaskAmountContainer" style="margin-top:10px;">
                             <label>Task Amount (₹) <span class="req">*</span></label>
-                            <input type="number" id="invTaskAmount" min="0" step="0.01" readonly placeholder="0.00" style="background:#f1f5f9;font-weight:700;color:var(--ink-900);cursor:not-allowed;" />
+                            <input type="number" id="invTaskAmount" min="0" step="0.01" oninput="onProjectTaskAmountInput()" placeholder="0.00" style="background:#fff;font-weight:700;color:var(--brand-600);" />
                         </div>
                     </div>
 
@@ -4021,6 +4021,7 @@ async function loadProjectDetailsBillableTasks(projectId, preselectedIds = []) {
             taskCode: t.TaskCode || t.taskCode || '',
             taskName: t.TaskName || t.taskName || 'Untitled Task',
             taskAmount: Number(t.TaskAmount !== undefined ? t.TaskAmount : (t.taskAmount || 0)),
+            status: t.Status || t.status || 'Pending',
             dueDate: t.DueDate || t.dueDate || ''
         }));
 
@@ -4029,23 +4030,27 @@ async function loadProjectDetailsBillableTasks(projectId, preselectedIds = []) {
         }
 
         if (projectBillableTasksCache.length === 0) {
-            container.innerHTML = '<div style="padding:15px;text-align:center;color:var(--ink-400);font-size:12.5px;">No completed, unbilled tasks found for this project.</div>';
-            if (taskAmtInput) taskAmtInput.value = 0;
-            if (invAmount) invAmount.value = 0;
-            recalcInvoiceTotal();
-            if (msg) {
-                msg.style.display = 'block';
-                msg.style.background = '#fef2f2';
-                msg.style.border = '1px solid #fecaca';
-                msg.style.color = '#dc2626';
-                msg.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> No completed unbilled tasks found for this project.';
+            const projBudget = @(Model.Budget > 0 ? Model.Budget.ToString(System.Globalization.CultureInfo.InvariantCulture) : "0");
+            const projTasksTotal = @(Model.Tasks != null && Model.Tasks.Any() ? Model.Tasks.Sum(t => t.TaskAmount).ToString(System.Globalization.CultureInfo.InvariantCulture) : "0");
+            const autoAmt = projTasksTotal > 0 ? projTasksTotal : (projBudget > 0 ? projBudget : 0);
+
+            container.innerHTML = '<div style="padding:15px;text-align:center;color:var(--ink-500);font-size:12.5px;"><i class="bi bi-info-circle"></i> Project task amount automatically loaded (₹' + Number(autoAmt).toLocaleString('en-IN') + '). You can adjust the amount below.</div>';
+            if (taskAmtInput) {
+                taskAmtInput.value = autoAmt;
+                taskAmtInput.readOnly = false;
+                taskAmtInput.style.background = '#fff';
+                taskAmtInput.style.cursor = 'text';
             }
+            if (invAmount) invAmount.value = autoAmt;
+            recalcInvoiceTotal();
+            if (msg) msg.style.display = 'none';
             return;
         }
 
         container.innerHTML = '';
         projectBillableTasksCache.forEach(task => {
-            const isChecked = Array.isArray(preselectedIds) && preselectedIds.includes(task.id);
+            // Automatically select all tasks by default so project task amount loads automatically
+            const isChecked = !preselectedIds || preselectedIds.length === 0 || preselectedIds.includes(task.id);
             const row = document.createElement('label');
             row.style.display = 'flex';
             row.style.alignItems = 'center';
@@ -4060,13 +4065,14 @@ async function loadProjectDetailsBillableTasks(projectId, preselectedIds = []) {
             row.onmouseout = () => row.style.background = '#fff';
 
             const codeStr = task.taskCode ? `[${escapeHtml(task.taskCode)}] ` : '';
+            const statusBadge = `<span class="badge" style="font-size:10.5px;padding:2px 6px;margin-left:6px;background:#eef2ff;color:#4f46e5;">${escapeHtml(task.status)}</span>`;
             const dueStr = task.dueDate ? ` &bull; Due: ${escapeHtml(task.dueDate)}` : '';
 
             row.innerHTML = `
                 <div style="display:flex;align-items:center;gap:10px;">
                     <input type="checkbox" class="proj-billable-task-cb" value="${task.id}" data-amount="${task.taskAmount}" ${isChecked ? 'checked' : ''} onchange="onProjectTaskCheckboxChange()" style="cursor:pointer;width:15px;height:15px;" />
                     <div>
-                        <div style="font-size:12.5px;font-weight:600;color:var(--ink-800);">${codeStr}${escapeHtml(task.taskName)}</div>
+                        <div style="font-size:12.5px;font-weight:600;color:var(--ink-800);">${codeStr}${escapeHtml(task.taskName)} ${statusBadge}</div>
                         <div style="font-size:11px;color:var(--ink-500);">Amount: ₹${task.taskAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${dueStr}</div>
                     </div>
                 </div>
@@ -4075,12 +4081,26 @@ async function loadProjectDetailsBillableTasks(projectId, preselectedIds = []) {
             container.appendChild(row);
         });
 
+        if (taskAmtInput) {
+            taskAmtInput.readOnly = false;
+            taskAmtInput.style.background = '#fff';
+            taskAmtInput.style.cursor = 'text';
+        }
+
         onProjectTaskCheckboxChange();
 
     } catch (err) {
         console.error(err);
         container.innerHTML = '<div style="padding:15px;text-align:center;color:#dc2626;font-size:12.5px;">Failed to load billable tasks.</div>';
     }
+}
+
+function onProjectTaskAmountInput() {
+    const taskAmtInput = document.getElementById('invTaskAmount');
+    const amt = parseFloat(taskAmtInput?.value) || 0;
+    const invAmount = document.getElementById('invAmount');
+    if (invAmount) invAmount.value = amt;
+    recalcInvoiceTotal();
 }
 
 function onProjectTaskCheckboxChange() {
@@ -4597,11 +4617,7 @@ async function handleSaveProjectInvoice(e) {
         }
     } else if (normType === 'Task Based Project') {
         const checkedBoxes = document.querySelectorAll('.proj-billable-task-cb:checked');
-        taskIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
-        if (taskIds.length === 0) {
-            showInvoiceModalError('Please select at least one completed task for this invoice.');
-            return;
-        }
+        taskIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10)).filter(n => !isNaN(n));
         amount = parseFloat(document.getElementById('invTaskAmount')?.value) || parseFloat(document.getElementById('invAmount')?.value) || 0;
         if (amount <= 0) {
             showInvoiceModalError('Task amount must be greater than 0.');
@@ -4634,7 +4650,7 @@ async function handleSaveProjectInvoice(e) {
     const payload = {
         projectId: projectId,
         milestoneId: normType === 'Milestone Based Project' ? milestoneId : null,
-        taskIds: normType === 'Task Based Project' ? taskIds : null,
+        taskIds: normType === 'Task Based Project' && taskIds && taskIds.length > 0 ? taskIds : null,
         invoiceNumber: invNumber,
         clientId: clientId,
         clientName: clientName,
