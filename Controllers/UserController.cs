@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using CrmLeadManagement.Models;
 using CrmLeadManagement.Security;
 using CrmLeadManagement.Services;
@@ -135,7 +137,7 @@ public class UserController : Controller
         var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                      Request.Headers["Accept"].ToString().Contains("application/json");
 
-        var input = (model.UserId ?? model.Email ?? "").Trim();
+        var input = model.GetEffectiveInput();
         var password = model.Password ?? "";
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
 
@@ -152,14 +154,12 @@ public class UserController : Controller
         // STRICT USER LOGIN AUTHENTICATION
         // 1. Admin credentials must NEVER work on the User Login page.
         // 2. Only valid credentials belonging to a registered user are allowed.
-        // 3. If unregistered or invalid password:
-        //    "Invalid User ID or Password. Please register first if you don't have an account."
         // =========================================================================
         bool isAdminInput = string.Equals(input, "admin", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(input, "admin@visioncrm.com", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(input, "admin@nimbuscrm.com", StringComparison.OrdinalIgnoreCase);
 
-        if (isAdminInput && password == "admin123")
+        if (isAdminInput && (password == "admin123" || password == "AdminPassword123!"))
         {
             _logger.LogWarning("Admin credentials entered on User Login portal from IP {IP}. REJECTED.", ip);
             await _auditLogService.LogAsync("UserLoginRejected", input, 0, input,
@@ -172,19 +172,20 @@ public class UserController : Controller
             return View("~/Views/Auth/UserLogin.cshtml", model);
         }
 
-        var inputLower = input.ToLower();
-        long.TryParse(input, out var numericId);
+        var inputLower = input.ToLowerInvariant();
+        int.TryParse(input, out var numericId);
 
-        // Query database for user
+        // Query database for user: matches registered UserId, Work Email, Email prefix, Name, or numeric Id
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             (u.UserId != null && u.UserId.ToLower() == inputLower) ||
             (u.Email != null && u.Email.ToLower() == inputLower) ||
+            (u.Email != null && u.Email.ToLower().StartsWith(inputLower + "@")) ||
             (u.Name != null && u.Name.ToLower() == inputLower) ||
             (numericId > 0 && u.Id == numericId));
 
         if (user == null)
         {
-            _logger.LogWarning("User login failed: unknown User ID '{Input}' from IP {IP}", input, ip);
+            _logger.LogWarning("User login failed: user '{Input}' not found in database from IP {IP}", input, ip);
             const string unregMsg = "Invalid User ID or Password.";
             if (isAjax) return Unauthorized(new { success = false, message = unregMsg });
             model.ErrorMessage = unregMsg;
@@ -192,7 +193,7 @@ public class UserController : Controller
             return View("~/Views/Auth/UserLogin.cshtml", model);
         }
 
-        // Reject if target user account is an Admin account
+        // Reject if target user account is an Admin account attempting to use the user portal
         if (user.IsAdminAccount)
         {
             _logger.LogWarning("SECURITY ALERT: Admin account {Email} ({Role}) attempted to log in through User Login portal from IP {IP}. REJECTED.",
@@ -208,12 +209,24 @@ public class UserController : Controller
             return View("~/Views/Auth/UserLogin.cshtml", model);
         }
 
+        // Check account active status BEFORE password verification: inactive users must receive a clear message
+        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("User login rejected: account '{Email}' is inactive (Status: {Status}) from IP {IP}", user.Email, user.Status, ip);
+            var inactiveMsg = "Your account is currently inactive. Please contact your system administrator.";
+            if (isAjax) return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = inactiveMsg });
+            model.ErrorMessage = inactiveMsg;
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            return View("~/Views/Auth/UserLogin.cshtml", model);
+        }
+
         var now = DateTime.UtcNow;
 
-        // Check lockout
+        // Check account lockout
         if (user.LockoutUntil.HasValue && user.LockoutUntil.Value > now)
         {
             var remaining = Math.Ceiling((user.LockoutUntil.Value - now).TotalMinutes);
+            _logger.LogWarning("User login rejected: account '{Email}' is locked out until {LockoutUntil} from IP {IP}", user.Email, user.LockoutUntil, ip);
             var lockMsg = $"Account is temporarily locked due to multiple failed login attempts. Please try again in {remaining} minute(s).";
             if (isAjax) return StatusCode(StatusCodes.Status423Locked, new { success = false, message = lockMsg });
             model.ErrorMessage = lockMsg;
@@ -221,13 +234,47 @@ public class UserController : Controller
             return View("~/Views/Auth/UserLogin.cshtml", model);
         }
 
-        // Verify password against user's own registered password
+        // Verify password: support PasswordHasher (PBKDF2), trimmed variations, and legacy formats
         bool passwordValid = false;
+        bool needsRehash = false;
+
         if (!string.IsNullOrWhiteSpace(user.PasswordHash))
         {
             var verifyResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
-            passwordValid = verifyResult == PasswordVerificationResult.Success ||
-                            verifyResult == PasswordVerificationResult.SuccessRehashNeeded;
+            if (verifyResult == PasswordVerificationResult.Success)
+            {
+                passwordValid = true;
+            }
+            else if (verifyResult == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                passwordValid = true;
+                needsRehash = true;
+            }
+            else if (password != password.Trim() &&
+                     _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password.Trim()) == PasswordVerificationResult.Success)
+            {
+                passwordValid = true;
+                needsRehash = true;
+            }
+            else if (string.Equals(user.PasswordHash, password, StringComparison.Ordinal) ||
+                     string.Equals(user.PasswordHash, password.Trim(), StringComparison.Ordinal))
+            {
+                // Plain-text match (legacy migration)
+                passwordValid = true;
+                needsRehash = true;
+            }
+            else
+            {
+                // SHA-256 match (legacy)
+                var sha256Hex = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
+                var sha256HexTrim = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password.Trim())));
+                if (string.Equals(user.PasswordHash, sha256Hex, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(user.PasswordHash, sha256HexTrim, StringComparison.OrdinalIgnoreCase))
+                {
+                    passwordValid = true;
+                    needsRehash = true;
+                }
+            }
         }
 
         if (!passwordValid)
@@ -236,10 +283,11 @@ public class UserController : Controller
             if (user.FailedLoginCount >= 5)
             {
                 user.LockoutUntil = now.AddMinutes(15);
-                _logger.LogWarning("Account {Email} locked out due to failed attempts from IP {IP}", user.Email, ip);
+                _logger.LogWarning("Account {Email} locked out for 15 minutes due to 5 consecutive failed attempts from IP {IP}", user.Email, ip);
             }
             await _db.SaveChangesAsync();
 
+            _logger.LogWarning("User login failed: wrong password for '{Email}' (Attempt #{Attempts}) from IP {IP}", user.Email, user.FailedLoginCount, ip);
             const string invalidMsg = "Invalid User ID or Password.";
             if (isAjax) return Unauthorized(new { success = false, message = invalidMsg });
             model.ErrorMessage = invalidMsg;
@@ -247,17 +295,13 @@ public class UserController : Controller
             return View("~/Views/Auth/UserLogin.cshtml", model);
         }
 
-        // Check account active status
-        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        // Success: Upgrade password hash if legacy format was matched
+        if (needsRehash)
         {
-            var inactiveMsg = "Your user account is inactive. Please contact system administrator.";
-            if (isAjax) return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = inactiveMsg });
-            model.ErrorMessage = inactiveMsg;
-            Response.StatusCode = StatusCodes.Status403Forbidden;
-            return View("~/Views/Auth/UserLogin.cshtml", model);
+            user.PasswordHash = _passwordHasher.HashPassword(user, password.Trim());
         }
 
-        // Success: Reset lockout counters
+        // Reset lockout counters
         user.FailedLoginCount = 0;
         user.LockoutUntil = null;
         user.LastLoginAt = now;
@@ -311,9 +355,10 @@ public class UserController : Controller
                 user = new
                 {
                     id = user.Id,
+                    userId = user.UserId,
                     name = user.Name,
                     email = user.Email,
-                    role = user.Role
+                    role = user.Role ?? "User"
                 }
             });
         }
@@ -337,25 +382,43 @@ public class UserController : Controller
         int.TryParse(userIdStr, out var userId);
         var dbUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
         var userName = dbUser?.Name ?? User.Identity?.Name ?? "User";
+        var userEmail = dbUser?.Email ?? "";
+        var userUid = dbUser?.UserId ?? "";
 
-        // Query assigned leads
+        // Query assigned leads (only leads assigned to this user)
         var assignedLeads = LeadStore.Leads
             .Where(l => string.Equals(l.AssignedTo, userName, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(l.AssignedTo, dbUser?.Email, StringComparison.OrdinalIgnoreCase))
+                        (!string.IsNullOrWhiteSpace(userEmail) && string.Equals(l.AssignedTo, userEmail, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrWhiteSpace(userUid) && string.Equals(l.AssignedTo, userUid, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
-        var pendingTasksCount = await _db.WorkTasks.CountAsync(t => t.AssignedMember == userName && t.Status != "Completed");
-        var activeProjectsCount = await _db.WorkProjects.CountAsync(p => p.Status != "Completed" && p.Status != "Cancelled");
+        // Query pending tasks (only tasks assigned to this user)
+        var pendingTasksCount = await _db.WorkTasks.CountAsync(t =>
+            (t.AssignedMember == userName ||
+             (!string.IsNullOrWhiteSpace(userEmail) && t.AssignedMember == userEmail) ||
+             (!string.IsNullOrWhiteSpace(userUid) && t.AssignedMember == userUid)) &&
+            t.Status != "Completed");
+
+        // Query accessible projects for this user
+        var allProjects = await _db.WorkProjects
+            .Include(p => p.Tasks)
+            .Include(p => p.Milestones)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var accessibleProjects = ProjectAccessPolicy.FilterAccessible(_db, User, dbUser, allProjects);
+        var activeProjectsCount = accessibleProjects.Count(p => p.Status != "Completed" && p.Status != "Cancelled");
 
         var viewModel = new UserDashboardViewModel
         {
             UserName = userName,
-            UserEmail = dbUser?.Email ?? "",
+            UserEmail = userEmail,
             UserRole = dbUser?.Role ?? "User",
             AssignedLeadsCount = assignedLeads.Count,
             PendingTasksCount = pendingTasksCount,
             ActiveProjectsCount = activeProjectsCount,
-            AssignedLeads = assignedLeads.Take(10).ToList()
+            AssignedLeads = assignedLeads.Take(10).ToList(),
+            AssignedProjects = accessibleProjects.Take(10).ToList()
         };
 
         return View("~/Views/User/Dashboard.cshtml", viewModel);
@@ -373,19 +436,32 @@ public class UserController : Controller
         int.TryParse(userIdStr, out var userId);
         var dbUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
         var userName = dbUser?.Name ?? User.Identity?.Name ?? "User";
+        var userEmail = dbUser?.Email ?? "";
+        var userUid = dbUser?.UserId ?? "";
 
         var assignedLeadsCount = LeadStore.Leads.Count(l =>
             string.Equals(l.AssignedTo, userName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(l.AssignedTo, dbUser?.Email, StringComparison.OrdinalIgnoreCase));
+            (!string.IsNullOrWhiteSpace(userEmail) && string.Equals(l.AssignedTo, userEmail, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(userUid) && string.Equals(l.AssignedTo, userUid, StringComparison.OrdinalIgnoreCase)));
 
-        var pendingTasksCount = await _db.WorkTasks.CountAsync(t => t.AssignedMember == userName && t.Status != "Completed");
+        var pendingTasksCount = await _db.WorkTasks.CountAsync(t =>
+            (t.AssignedMember == userName ||
+             (!string.IsNullOrWhiteSpace(userEmail) && t.AssignedMember == userEmail) ||
+             (!string.IsNullOrWhiteSpace(userUid) && t.AssignedMember == userUid)) &&
+            t.Status != "Completed");
+
+        var allProjects = await _db.WorkProjects.AsNoTracking().ToListAsync();
+        var accessibleProjects = ProjectAccessPolicy.FilterAccessible(_db, User, dbUser, allProjects);
+        var activeProjectsCount = accessibleProjects.Count(p => p.Status != "Completed" && p.Status != "Cancelled");
 
         return Ok(new
         {
             userName,
             userRole = dbUser?.Role ?? "User",
+            userEmail,
             assignedLeadsCount,
-            pendingTasksCount
+            pendingTasksCount,
+            activeProjectsCount
         });
     }
 
@@ -409,6 +485,7 @@ public class UserController : Controller
         return Ok(new
         {
             id = dbUser.Id,
+            userId = dbUser.UserId,
             name = dbUser.Name,
             email = dbUser.Email,
             role = dbUser.Role,
@@ -444,4 +521,5 @@ public class UserDashboardViewModel
     public int PendingTasksCount { get; set; }
     public int ActiveProjectsCount { get; set; }
     public List<Lead> AssignedLeads { get; set; } = new();
+    public List<WorkProject> AssignedProjects { get; set; } = new();
 }

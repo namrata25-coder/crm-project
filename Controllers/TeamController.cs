@@ -69,7 +69,7 @@ public class TeamController : Controller
 
     // POST /Team/SaveMember - Add or Update a team member
     [HttpPost]
-    public async Task<IActionResult> SaveMember(int id, string name, string email, string role, string status, string? password = null)
+    public async Task<IActionResult> SaveMember(int id, string name, string email, string role, string status, string? password = null, string? userId = null)
     {
         var authEmail = User.FindFirst(ClaimTypes.Email)?.Value;
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -128,13 +128,17 @@ public class TeamController : Controller
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            TempData["ErrorMessage"] = "Full name is required.";
+            var msg = "Full name is required.";
+            if (isAjax) return BadRequest(new { success = false, message = msg });
+            TempData["ErrorMessage"] = msg;
             return RedirectToAction(nameof(Index));
         }
 
         if (string.IsNullOrWhiteSpace(email) || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
         {
-            TempData["ErrorMessage"] = "A valid email address is required.";
+            var msg = "A valid email address is required.";
+            if (isAjax) return BadRequest(new { success = false, message = msg });
+            TempData["ErrorMessage"] = msg;
             return RedirectToAction(nameof(Index));
         }
 
@@ -142,8 +146,33 @@ public class TeamController : Controller
         var duplicate = await _db.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == email && u.Id != id);
         if (duplicate)
         {
-            TempData["ErrorMessage"] = $"Email address '{email}' is already in use by another team member.";
+            var msg = $"Email address '{email}' is already in use by another team member.";
+            if (isAjax) return BadRequest(new { success = false, message = msg });
+            TempData["ErrorMessage"] = msg;
             return RedirectToAction(nameof(Index));
+        }
+
+        // Normalize and validate User ID
+        var cleanUserId = (userId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(cleanUserId))
+        {
+            cleanUserId = email.Contains('@') ? email.Split('@')[0].Trim().ToLowerInvariant() : email;
+        }
+
+        var duplicateUserId = await _db.Users.AnyAsync(u => u.UserId != null && u.UserId.ToLower() == cleanUserId.ToLower() && u.Id != id);
+        if (duplicateUserId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                cleanUserId = $"{cleanUserId}_{DateTime.UtcNow.Ticks % 1000}";
+            }
+            else
+            {
+                var msg = $"User ID '{cleanUserId}' is already in use by another user.";
+                if (isAjax) return BadRequest(new { success = false, message = msg });
+                TempData["ErrorMessage"] = msg;
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         // Fetch Role from RoleMasters to synchronize ModulePermissions
@@ -162,12 +191,15 @@ public class TeamController : Controller
         {
             if (string.IsNullOrWhiteSpace(password) || password.Trim().Length < 6)
             {
-                TempData["ErrorMessage"] = "Password must be at least 6 characters for a new team member.";
+                var msg = "Password must be at least 6 characters for a new team member.";
+                if (isAjax) return BadRequest(new { success = false, message = msg });
+                TempData["ErrorMessage"] = msg;
                 return RedirectToAction(nameof(Index));
             }
 
             var newUser = new UserRoleEntry
             {
+                UserId = cleanUserId,
                 Name = name,
                 Email = email,
                 Role = roleMaster != null ? roleMaster.RoleName : role,
@@ -182,17 +214,25 @@ public class TeamController : Controller
             _db.Users.Add(newUser);
             await _db.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Team member '{name}' added successfully with role '{newUser.Role}'.";
+            if (isAjax)
+            {
+                return Ok(new { success = true, message = $"Team member '{name}' added successfully with role '{newUser.Role}'.", user = newUser });
+            }
+
+            TempData["SuccessMessage"] = $"Team member '{name}' added successfully with role '{newUser.Role}' and User ID '{cleanUserId}'.";
         }
         else
         {
             var user = await _db.Users.FindAsync(id);
             if (user == null)
             {
-                TempData["ErrorMessage"] = "Team member not found.";
+                var msg = "Team member not found.";
+                if (isAjax) return NotFound(new { success = false, message = msg });
+                TempData["ErrorMessage"] = msg;
                 return RedirectToAction(nameof(Index));
             }
 
+            user.UserId = cleanUserId;
             user.Name = name;
             user.Email = email;
             user.Role = roleMaster != null ? roleMaster.RoleName : role;
@@ -206,6 +246,11 @@ public class TeamController : Controller
             }
 
             await _db.SaveChangesAsync();
+
+            if (isAjax)
+            {
+                return Ok(new { success = true, message = $"Team member '{name}' updated successfully.", user });
+            }
 
             TempData["SuccessMessage"] = $"Team member '{name}' updated successfully.";
         }

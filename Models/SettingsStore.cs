@@ -162,6 +162,10 @@ public static class SettingsStore
         user.Name = user.Name.Trim();
         user.Id = 0;
         user.Email = normalizedEmail;
+        if (string.IsNullOrWhiteSpace(user.UserId))
+        {
+            user.UserId = normalizedEmail.Contains('@') ? normalizedEmail.Split('@')[0].Trim().ToLowerInvariant() : normalizedEmail;
+        }
         user.Role = user.Role?.Trim() ?? "";
         user.Status = string.IsNullOrWhiteSpace(user.Status) ? "Active" : user.Status.Trim();
         user.FailedLoginCount = 0;
@@ -382,6 +386,7 @@ public static class SettingsStore
         {
             var stdUser = new UserRoleEntry
             {
+                UserId = "user",
                 Name = "Standard User",
                 Email = userEmail,
                 Role = "User",
@@ -394,6 +399,7 @@ public static class SettingsStore
         }
         else
         {
+            if (string.IsNullOrWhiteSpace(existingUser.UserId)) existingUser.UserId = "user";
             existingUser.Email = userEmail;
             existingUser.Role = "User";
             existingUser.Status = "Active";
@@ -404,14 +410,35 @@ public static class SettingsStore
             }
         }
 
-        // Initialize individual distinct passwords for sample team members if they don't have a password yet,
-        // or if their password inadvertently matched the administrator's password.
+        // Ensure all users in database have a valid, non-empty UserId for User Portal login
+        foreach (var u in db.Users.ToList())
+        {
+            if (string.IsNullOrWhiteSpace(u.UserId))
+            {
+                if (u.IsAdminAccount)
+                {
+                    u.UserId = "admin";
+                }
+                else if (!string.IsNullOrWhiteSpace(u.Email) && u.Email.Contains('@'))
+                {
+                    u.UserId = u.Email.Split('@')[0].Trim().ToLowerInvariant();
+                }
+                else if (!string.IsNullOrWhiteSpace(u.Name))
+                {
+                    u.UserId = u.Name.Trim().Replace(" ", "").ToLowerInvariant();
+                }
+                else
+                {
+                    u.UserId = $"user{u.Id}";
+                }
+            }
+        }
+        db.SaveChanges();
+
+        // Initialize individual distinct passwords for sample team members ONLY if they don't have a password yet
         foreach (var teamMember in db.Users.Where(u => u.Role != "Admin" && u.Role != "Super Admin"))
         {
-            bool isMatchingAdmin = !string.IsNullOrWhiteSpace(teamMember.PasswordHash) &&
-                hasher.VerifyHashedPassword(teamMember, teamMember.PasswordHash, adminPassword) == PasswordVerificationResult.Success;
-
-            if (string.IsNullOrWhiteSpace(teamMember.PasswordHash) || isMatchingAdmin)
+            if (string.IsNullOrWhiteSpace(teamMember.PasswordHash))
             {
                 var firstWord = (teamMember.Name ?? "User").Split(' ')[0];
                 var userDefaultPassword = $"{firstWord}@123!";

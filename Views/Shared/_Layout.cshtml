@@ -63,6 +63,13 @@
                         <i class="bi bi-speedometer2"></i> Admin Dashboard
                     </a>
                 }
+                else
+                {
+                    <div class="sidebar-section-label">DASHBOARD</div>
+                    <a class="sidebar-link @(activePage == "UserDashboard" ? "active" : "")" href="/user/dashboard">
+                        <i class="bi bi-speedometer2"></i> User Dashboard
+                    </a>
+                }
 
                 @if (canViewModule("Lead List") || canViewModule("Assigned Leads"))
                 {

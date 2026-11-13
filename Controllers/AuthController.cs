@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using CrmLeadManagement.Models;
 using CrmLeadManagement.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -93,7 +95,7 @@ public class AuthController : Controller
         var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
                      Request.Headers["Accept"].ToString().Contains("application/json");
 
-        var input = (model.UserId ?? model.Email ?? "").Trim();
+        var input = model.GetEffectiveInput();
         var password = model.Password ?? "";
         var returnUrl = model.ReturnUrl;
         var targetPortal = (model.LoginType ?? "user").Trim().ToLowerInvariant();
@@ -261,18 +263,19 @@ public class AuthController : Controller
         }
 
         int.TryParse(input, out var numericId);
-        var inputLower = input.ToLower();
+        var inputLower = input.ToLowerInvariant();
 
-        // Query database for registered user
+        // Query database for registered user: match by UserId, Email, email prefix, Name, or numeric Id
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             (u.UserId != null && u.UserId.ToLower() == inputLower) ||
             (u.Email != null && u.Email.ToLower() == inputLower) ||
+            (u.Email != null && u.Email.ToLower().StartsWith(inputLower + "@")) ||
             (u.Name != null && u.Name.ToLower() == inputLower) ||
             (numericId > 0 && u.Id == numericId));
 
         if (user == null)
         {
-            _logger.LogWarning("User login failed: unknown User ID '{Input}' from IP {IP}", input, ip);
+            _logger.LogWarning("User login failed: unknown User ID or Email '{Input}' from IP {IP}", input, ip);
             const string unregMsg = "Invalid User ID or Password.";
             if (isAjax) return Unauthorized(new { success = false, message = unregMsg });
             model.ErrorMessage = unregMsg;
@@ -294,6 +297,17 @@ public class AuthController : Controller
             return View(model);
         }
 
+        // Check account active status BEFORE password verification: inactive users must receive clear message
+        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Web login attempted on inactive account {Email} from IP {IP}", user.Email, ip);
+            var inactiveMsg = "Your account is currently inactive. Please contact your system administrator.";
+            if (isAjax) return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = inactiveMsg });
+            model.ErrorMessage = inactiveMsg;
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            return View(model);
+        }
+
         // Check account lockout
         if (user.LockoutUntil.HasValue && user.LockoutUntil.Value > now)
         {
@@ -306,13 +320,47 @@ public class AuthController : Controller
             return View(model);
         }
 
-        // Verify password against user's own registered password
+        // Verify password: support PasswordHasher (PBKDF2), trimmed variations, and legacy formats
         bool passwordValid = false;
+        bool needsRehash = false;
+
         if (!string.IsNullOrWhiteSpace(user.PasswordHash))
         {
             var verifyResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
-            passwordValid = verifyResult == PasswordVerificationResult.Success ||
-                            verifyResult == PasswordVerificationResult.SuccessRehashNeeded;
+            if (verifyResult == PasswordVerificationResult.Success)
+            {
+                passwordValid = true;
+            }
+            else if (verifyResult == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                passwordValid = true;
+                needsRehash = true;
+            }
+            else if (password != password.Trim() &&
+                     _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password.Trim()) == PasswordVerificationResult.Success)
+            {
+                passwordValid = true;
+                needsRehash = true;
+            }
+            else if (string.Equals(user.PasswordHash, password, StringComparison.Ordinal) ||
+                     string.Equals(user.PasswordHash, password.Trim(), StringComparison.Ordinal))
+            {
+                // Plain-text match (legacy migration)
+                passwordValid = true;
+                needsRehash = true;
+            }
+            else
+            {
+                // SHA-256 match (legacy)
+                var sha256Hex = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
+                var sha256HexTrim = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password.Trim())));
+                if (string.Equals(user.PasswordHash, sha256Hex, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(user.PasswordHash, sha256HexTrim, StringComparison.OrdinalIgnoreCase))
+                {
+                    passwordValid = true;
+                    needsRehash = true;
+                }
+            }
         }
 
         if (!passwordValid)
@@ -332,15 +380,10 @@ public class AuthController : Controller
             return View(model);
         }
 
-        // Check account active status
-        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        // Success: Upgrade password hash if legacy format was matched
+        if (needsRehash)
         {
-            _logger.LogWarning("Web login attempted on inactive account {Email} from IP {IP}", user.Email, ip);
-            var inactiveMsg = "Your account is currently inactive. Please contact your system administrator.";
-            if (isAjax) return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = inactiveMsg });
-            model.ErrorMessage = inactiveMsg;
-            Response.StatusCode = StatusCodes.Status403Forbidden;
-            return View(model);
+            user.PasswordHash = _passwordHasher.HashPassword(user, password.Trim());
         }
 
         // Login success: reset lockout and update LastLoginAt
@@ -395,6 +438,7 @@ public class AuthController : Controller
                 user = new
                 {
                     id = user.Id,
+                    userId = user.UserId,
                     name = user.Name,
                     email = user.Email,
                     role = user.Role ?? "User"

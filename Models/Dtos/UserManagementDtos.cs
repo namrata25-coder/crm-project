@@ -4,6 +4,8 @@ namespace CrmLeadManagement.Models.Dtos;
 
 public class CreateUserRequest
 {
+    public string? UserId { get; set; } = "";
+
     [Required(ErrorMessage = "Full Name is required.")]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Full Name must be between 2 and 100 characters.")]
     public string FullName { get; set; } = "";
@@ -20,6 +22,8 @@ public class CreateUserRequest
 
 public class UpdateUserRequest
 {
+    public string? UserId { get; set; } = "";
+
     [Required(ErrorMessage = "Full Name is required.")]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Full Name must be between 2 and 100 characters.")]
     public string FullName { get; set; } = "";
@@ -38,6 +42,7 @@ public class UpdateUserRequest
 public class UserItemResponse
 {
     public int Id { get; set; }
+    public string UserId { get; set; } = "";
     public string Name { get; set; } = "";
     public string Email { get; set; } = "";
     public string Role { get; set; } = "";

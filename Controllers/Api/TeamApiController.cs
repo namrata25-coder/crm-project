@@ -195,6 +195,25 @@ public class TeamApiController : ControllerBase
         if (duplicate)
             return BadRequest(new { message = $"Email address '{email}' is already in use by another team member." });
 
+        var cleanUserId = (dto.UserId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(cleanUserId))
+        {
+            cleanUserId = email.Contains('@') ? email.Split('@')[0].Trim().ToLowerInvariant() : email;
+        }
+
+        var duplicateUserId = await _db.Users.AnyAsync(u => u.UserId != null && u.UserId.ToLower() == cleanUserId.ToLower() && u.Id != dto.Id);
+        if (duplicateUserId)
+        {
+            if (string.IsNullOrWhiteSpace(dto.UserId))
+            {
+                cleanUserId = $"{cleanUserId}_{DateTime.UtcNow.Ticks % 1000}";
+            }
+            else
+            {
+                return BadRequest(new { message = $"User ID '{cleanUserId}' is already in use by another team member." });
+            }
+        }
+
         var roleMaster = await _db.RoleMasters.FirstOrDefaultAsync(r => r.RoleName.ToLower() == role.ToLower());
         var permsList = roleMaster != null ? roleMaster.GetPermissions() : RoleStore.GetDefaultMatrixTemplate();
         var modulePermsString = string.Join(",", permsList.Where(p => p.View).Select(p => p.Module));
@@ -207,6 +226,7 @@ public class TeamApiController : ControllerBase
 
             var newUser = new UserRoleEntry
             {
+                UserId = cleanUserId,
                 Name = name,
                 Email = email,
                 Role = roleMaster != null ? roleMaster.RoleName : role,
@@ -235,6 +255,7 @@ public class TeamApiController : ControllerBase
                 return StatusCode(403, new { message = "Only administrators can modify an Admin account." });
             }
 
+            user.UserId = cleanUserId;
             user.Name = name;
             user.Email = email;
             user.Role = roleMaster != null ? roleMaster.RoleName : role;
@@ -293,6 +314,7 @@ public class TeamApiController : ControllerBase
 public class SaveMemberApiDto
 {
     public int Id { get; set; }
+    public string? UserId { get; set; } = "";
     public string Name { get; set; } = "";
     public string Email { get; set; } = "";
     public string Role { get; set; } = "";

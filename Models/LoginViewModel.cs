@@ -8,22 +8,11 @@ namespace CrmLeadManagement.Models;
 /// </summary>
 public class LoginViewModel
 {
-    private string _userId = "";
-
-    [Required(ErrorMessage = "User ID or Email is required.")]
     [Display(Name = "User ID")]
-    public string UserId
-    {
-        get => _userId;
-        set => _userId = value ?? "";
-    }
+    public string? UserId { get; set; } = "";
 
-    /// <summary>Alias for UserId to accept 'Email' form fields as well.</summary>
-    public string Email
-    {
-        get => _userId;
-        set => _userId = value ?? "";
-    }
+    [Display(Name = "Email")]
+    public string? Email { get; set; } = "";
 
     [Required(ErrorMessage = "Password is required.")]
     [DataType(DataType.Password)]
@@ -41,4 +30,14 @@ public class LoginViewModel
 
     /// <summary>Target authentication portal: 'admin' for Admin Login, 'user' for User Login.</summary>
     public string? LoginType { get; set; } = "user";
+
+    /// <summary>
+    /// Returns the effective credential input (User ID, Email, or Username), trimmed.
+    /// </summary>
+    public string GetEffectiveInput()
+    {
+        if (!string.IsNullOrWhiteSpace(UserId)) return UserId.Trim();
+        if (!string.IsNullOrWhiteSpace(Email)) return Email.Trim();
+        return "";
+    }
 }

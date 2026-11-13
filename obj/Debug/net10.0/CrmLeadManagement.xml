@@ -1194,11 +1194,13 @@
             Supports login via User ID or Email address.
             </summary>
         </member>
-        <member name="P:CrmLeadManagement.Models.LoginViewModel.Email">
-            <summary>Alias for UserId to accept 'Email' form fields as well.</summary>
-        </member>
         <member name="P:CrmLeadManagement.Models.LoginViewModel.LoginType">
             <summary>Target authentication portal: 'admin' for Admin Login, 'user' for User Login.</summary>
+        </member>
+        <member name="M:CrmLeadManagement.Models.LoginViewModel.GetEffectiveInput">
+            <summary>
+            Returns the effective credential input (User ID, Email, or Username), trimmed.
+            </summary>
         </member>
         <member name="T:CrmLeadManagement.Models.ModulePermissionItem">
             <summary>
