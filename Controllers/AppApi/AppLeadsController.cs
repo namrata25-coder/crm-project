@@ -19,6 +19,7 @@ namespace CrmLeadManagement.Controllers.AppApi;
 /// </summary>
 [ApiController]
 [Route("api/v1/app/leads")]
+[Route("api/app/v1/leads")]
 [Produces("application/json")]
 [Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme + "," + BearerTokenAuthenticationHandler.SchemeName)]
 public class AppLeadsController : ControllerBase
@@ -321,6 +322,9 @@ public class AppLeadsController : ControllerBase
                 .Include(l => l.Visits)
                 .Include(l => l.Requirements)
                 .Include(l => l.AssignmentHistory)
+                .Include(l => l.Estimations)
+                .Include(l => l.Quotations)
+                .Include(l => l.Proposals)
                 .FirstOrDefaultAsync(l => l.Id == numId || l.LeadId == trimmed);
             if (lead != null) return lead;
 
@@ -330,6 +334,9 @@ public class AppLeadsController : ControllerBase
                 .Include(l => l.Visits)
                 .Include(l => l.Requirements)
                 .Include(l => l.AssignmentHistory)
+                .Include(l => l.Estimations)
+                .Include(l => l.Quotations)
+                .Include(l => l.Proposals)
                 .FirstOrDefaultAsync(l => l.LeadId == $"LD-{numId}" || l.LeadId == $"LD-100{numId}" || l.LeadId == $"LD-00{numId}" || l.LeadId.EndsWith(numId.ToString()));
             if (prefixed != null) return prefixed;
         }
@@ -340,6 +347,9 @@ public class AppLeadsController : ControllerBase
             .Include(l => l.Visits)
             .Include(l => l.Requirements)
             .Include(l => l.AssignmentHistory)
+            .Include(l => l.Estimations)
+            .Include(l => l.Quotations)
+            .Include(l => l.Proposals)
             .FirstOrDefaultAsync(l => l.LeadId == trimmed);
     }
 

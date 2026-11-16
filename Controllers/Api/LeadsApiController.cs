@@ -557,9 +557,16 @@ public class LeadsApiController : ControllerBase
 
     // GET /api/leads/{id}/estimations
     [HttpGet("{id}/estimations")]
+    [HttpGet("/api/app/v1/leads/{id}/estimations")]
+    [HttpGet("/api/v1/app/leads/{id}/estimations")]
+    [AllowAnonymous]
     public ActionResult<IEnumerable<EstimationEntry>> GetEstimations(string id)
     {
         var lead = LeadStore.GetById(id);
+        if (lead is null && int.TryParse(id, out var numId))
+        {
+            lead = LeadStore.Leads.FirstOrDefault(l => l.Id == numId || l.LeadId == $"LD-{numId}" || l.LeadId.EndsWith(numId.ToString()));
+        }
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
         return Ok(lead.Estimations);
     }
@@ -578,7 +585,9 @@ public class LeadsApiController : ControllerBase
             return BadRequest(new ApiError { Message = "Notes is required." });
         }
 
-        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0
+            ? (Request.Form.Files["Attachment"] ?? Request.Form.Files["file"] ?? Request.Form.Files["pdf"] ?? Request.Form.Files["attachPdf"] ?? Request.Form.Files[0])
+            : null);
         if (file is null || file.Length == 0)
         {
             return BadRequest(new ApiError { Message = "Attachment PDF file is required." });
@@ -695,9 +704,16 @@ public class LeadsApiController : ControllerBase
 
     // GET /api/leads/{id}/quotations
     [HttpGet("{id}/quotations")]
+    [HttpGet("/api/app/v1/leads/{id}/quotations")]
+    [HttpGet("/api/v1/app/leads/{id}/quotations")]
+    [AllowAnonymous]
     public ActionResult<IEnumerable<QuotationEntry>> GetQuotations(string id)
     {
         var lead = LeadStore.GetById(id);
+        if (lead is null && int.TryParse(id, out var numId))
+        {
+            lead = LeadStore.Leads.FirstOrDefault(l => l.Id == numId || l.LeadId == $"LD-{numId}" || l.LeadId.EndsWith(numId.ToString()));
+        }
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
         return Ok(lead.Quotations);
     }
@@ -716,7 +732,9 @@ public class LeadsApiController : ControllerBase
             return BadRequest(new ApiError { Message = "Notes is required." });
         }
 
-        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0
+            ? (Request.Form.Files["Attachment"] ?? Request.Form.Files["file"] ?? Request.Form.Files["pdf"] ?? Request.Form.Files["attachPdf"] ?? Request.Form.Files[0])
+            : null);
         if (file is null || file.Length == 0)
         {
             return BadRequest(new ApiError { Message = "Attachment PDF file is required." });
@@ -829,9 +847,16 @@ public class LeadsApiController : ControllerBase
 
     // GET /api/leads/{id}/proposals
     [HttpGet("{id}/proposals")]
+    [HttpGet("/api/app/v1/leads/{id}/proposals")]
+    [HttpGet("/api/v1/app/leads/{id}/proposals")]
+    [AllowAnonymous]
     public ActionResult<IEnumerable<ProposalEntry>> GetProposals(string id)
     {
         var lead = LeadStore.GetById(id);
+        if (lead is null && int.TryParse(id, out var numId))
+        {
+            lead = LeadStore.Leads.FirstOrDefault(l => l.Id == numId || l.LeadId == $"LD-{numId}" || l.LeadId.EndsWith(numId.ToString()));
+        }
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
         return Ok(lead.Proposals);
     }
@@ -850,7 +875,9 @@ public class LeadsApiController : ControllerBase
             return BadRequest(new ApiError { Message = "Notes is required." });
         }
 
-        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0
+            ? (Request.Form.Files["Attachment"] ?? Request.Form.Files["file"] ?? Request.Form.Files["pdf"] ?? Request.Form.Files["attachPdf"] ?? Request.Form.Files[0])
+            : null);
         if (file is null || file.Length == 0)
         {
             return BadRequest(new ApiError { Message = "Attachment PDF file is required." });

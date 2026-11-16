@@ -165,8 +165,17 @@ public class EstimationEntry
     public string? Status { get; set; } = "Draft";
 
     // Optional single attachment (quote/estimation backup file, drawing, spec sheet, etc.)
-    public string? AttachmentPath { get; set; } = "";     // relative path under wwwroot, e.g. /uploads/finance/estimations/xyz.pdf
+    private string? _attachmentPath = "";
+    public string? AttachmentPath
+    {
+        get => LookupData.NormalizeAttachmentPath(_attachmentPath);
+        set => _attachmentPath = LookupData.NormalizeAttachmentPath(value);
+    }
     public string? AttachmentFileName { get; set; } = ""; // original file name shown to the user, e.g. Estimate_Draft.pdf
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonPropertyName("HasAttachment")]
+    public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentPath);
 }
 
 /// <summary>A Quotation raised against a lead (Finance &gt; Quotation tab).</summary>
@@ -185,13 +194,27 @@ public class QuotationEntry
     public string? TaxName { get; set; } = "";
     public string? TaxType { get; set; } = "";
     public string? GrandTotal { get; set; } = "0";
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonPropertyName("Total")]
+    public string? Total => GrandTotal;
+
     public string? ValidUntil { get; set; } = "";
     public string? TermsConditions { get; set; } = "";
     public string? Notes { get; set; } = "";
     public string? Status { get; set; } = "Draft";
 
-    public string? AttachmentPath { get; set; } = "";
+    private string? _attachmentPath = "";
+    public string? AttachmentPath
+    {
+        get => LookupData.NormalizeAttachmentPath(_attachmentPath);
+        set => _attachmentPath = LookupData.NormalizeAttachmentPath(value);
+    }
     public string? AttachmentFileName { get; set; } = "";
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonPropertyName("HasAttachment")]
+    public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentPath);
 }
 
 /// <summary>A Proposal raised against a lead (Finance &gt; Proposal tab). No line items.</summary>
@@ -215,12 +238,26 @@ public class ProposalEntry
     public string? TaxName { get; set; } = "";
     public string? TaxType { get; set; } = "";
     public string? GrandTotal { get; set; } = "0";
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonPropertyName("Total")]
+    public string? Total => GrandTotal;
+
     public string? TermsConditions { get; set; } = "";
     public string? Notes { get; set; } = "";
     public string? Status { get; set; } = "Draft";
 
-    public string? AttachmentPath { get; set; } = "";
+    private string? _attachmentPath = "";
+    public string? AttachmentPath
+    {
+        get => LookupData.NormalizeAttachmentPath(_attachmentPath);
+        set => _attachmentPath = LookupData.NormalizeAttachmentPath(value);
+    }
     public string? AttachmentFileName { get; set; } = "";
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonPropertyName("HasAttachment")]
+    public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentPath);
 }
 
 /// <summary>
@@ -249,4 +286,22 @@ public static class LookupData
     public static List<string> Statuses => SettingsStore.Statuses;
     public static List<string> Sources => SettingsStore.Sources;
     public static List<TaxMaster> Taxes => SettingsStore.ActiveTaxes;
+
+    public static string NormalizeAttachmentPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return "";
+        var p = path.Trim();
+        if (p.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || p.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate(p, UriKind.Absolute, out var uri))
+            {
+                p = uri.PathAndQuery;
+            }
+        }
+        if (!p.StartsWith("/") && !string.IsNullOrEmpty(p))
+        {
+            p = "/" + p;
+        }
+        return p;
+    }
 }

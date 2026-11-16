@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 
@@ -153,14 +154,14 @@ public class LeadCountSummaryDto
 /// </summary>
 public class LeadFinanceUploadForm
 {
+    [Required]
     public string? Notes { get; set; }
+
+    [Required]
     public IFormFile? Attachment { get; set; }
-    public IFormFile? File { get; set; }
-    public IFormFile? Pdf { get; set; }
-    public IFormFile? AttachPdf { get; set; }
 
     [JsonIgnore]
-    public IFormFile? ResolvedFile => Attachment ?? File ?? Pdf ?? AttachPdf;
+    public IFormFile? ResolvedFile => Attachment;
 }
 
 /// <summary>
