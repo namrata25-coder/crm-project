@@ -931,18 +931,7 @@ function openEditFinanceModal(kind, number) {
 
 // Validates the Add/Edit Estimation/Quotation/Proposal form before submission
 function validateFinanceForm(form, kind) {
-  const numInput = document.getElementById(kind + 'Number');
-  const isEdit = numInput && numInput.value.trim() !== '';
   const fileInput = document.getElementById(kind + 'Attachment');
-  const currentBox = document.getElementById(kind + 'CurrentAttachment');
-  const hasExisting = currentBox && currentBox.style.display !== 'none';
-
-  if (!isEdit || !hasExisting) {
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-      alert('Please attach a PDF file to proceed.');
-      return false;
-    }
-  }
 
   if (fileInput && fileInput.files && fileInput.files.length > 0) {
     const file = fileInput.files[0];

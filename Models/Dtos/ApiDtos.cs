@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http;
 
 namespace CrmLeadManagement.Models.Dtos;
 
@@ -145,4 +146,46 @@ public class LeadCountSummaryDto
 
     [JsonPropertyName("byPriority")]
     public Dictionary<string, int> ByPriority { get; set; } = new();
+}
+
+/// <summary>
+/// Form-data model for uploading Notes and PDF Attachment for Estimation, Quotation, or Proposal.
+/// </summary>
+public class LeadFinanceUploadForm
+{
+    public string? Notes { get; set; }
+    public IFormFile? Attachment { get; set; }
+    public IFormFile? File { get; set; }
+    public IFormFile? Pdf { get; set; }
+    public IFormFile? AttachPdf { get; set; }
+
+    [JsonIgnore]
+    public IFormFile? ResolvedFile => Attachment ?? File ?? Pdf ?? AttachPdf;
+}
+
+/// <summary>
+/// JSON response model returning saved finance attachment record.
+/// </summary>
+public class LeadFinanceUploadResponse
+{
+    [JsonPropertyName("Number")]
+    public string Number { get; set; } = "";
+
+    [JsonPropertyName("Notes")]
+    public string Notes { get; set; } = "";
+
+    [JsonPropertyName("Date")]
+    public string Date { get; set; } = "";
+
+    [JsonPropertyName("Status")]
+    public string Status { get; set; } = "Draft";
+
+    [JsonPropertyName("AttachmentPath")]
+    public string AttachmentPath { get; set; } = "";
+
+    [JsonPropertyName("AttachmentFileName")]
+    public string AttachmentFileName { get; set; } = "";
+
+    [JsonPropertyName("HasAttachment")]
+    public bool HasAttachment { get; set; } = true;
 }

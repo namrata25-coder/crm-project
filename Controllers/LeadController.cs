@@ -500,7 +500,7 @@ public class LeadController : Controller
         var existing = string.IsNullOrWhiteSpace(number) ? null : lead.Estimations.FirstOrDefault(e => e.Number == number);
         var entry = existing ?? new EstimationEntry { Number = LeadStore.NextEstimationNumber() };
 
-        var (attPath, attName, attError) = await FinanceAttachmentService.SaveAsync(attachment, "estimations");
+        var (attPath, attName, attError) = await FinanceAttachmentService.SavePdfAsync(attachment, "estimations");
         if (attError is not null)
         {
             TempData["EstimationError"] = attError;
@@ -574,7 +574,7 @@ public class LeadController : Controller
         var existing = string.IsNullOrWhiteSpace(number) ? null : lead.Quotations.FirstOrDefault(q => q.Number == number);
         var entry = existing ?? new QuotationEntry { Number = LeadStore.NextQuotationNumber() };
 
-        var (attPath, attName, attError) = await FinanceAttachmentService.SaveAsync(attachment, "quotations");
+        var (attPath, attName, attError) = await FinanceAttachmentService.SavePdfAsync(attachment, "quotations");
         if (attError is not null)
         {
             TempData["QuotationError"] = attError;
@@ -639,7 +639,7 @@ public class LeadController : Controller
         var existing = string.IsNullOrWhiteSpace(number) ? null : lead.Proposals.FirstOrDefault(p => p.Number == number);
         var entry = existing ?? new ProposalEntry { Number = LeadStore.NextProposalNumber() };
 
-        var (attPath, attName, attError) = await FinanceAttachmentService.SaveAsync(attachment, "proposals");
+        var (attPath, attName, attError) = await FinanceAttachmentService.SavePdfAsync(attachment, "proposals");
         if (attError is not null)
         {
             TempData["ProposalError"] = attError;

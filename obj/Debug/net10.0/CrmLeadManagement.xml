@@ -63,6 +63,42 @@
             Base route: /api/clients
             </summary>
         </member>
+        <member name="T:CrmLeadManagement.Controllers.Api.EstimationsApiController">
+            <summary>
+            Web REST API for Estimations supporting Notes and PDF upload.
+            Base Route: /api/estimations
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.EstimationsApiController.GetAll(System.String)">
+            <summary>
+            GET /api/estimations
+            Retrieves list of all estimations or filters by leadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.EstimationsApiController.GetById(System.String)">
+            <summary>
+            GET /api/estimations/{id}
+            Retrieves a single estimation by numeric Id, Number (e.g. EST-2001), or LeadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.EstimationsApiController.SaveEstimationForm(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm)">
+            <summary>
+            POST /api/estimations (multipart/form-data or application/x-www-form-urlencoded)
+            Saves Notes and optional PDF attachment for an Estimation.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.EstimationsApiController.SaveEstimationJson(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto)">
+            <summary>
+            POST /api/estimations (application/json)
+            Saves Notes and fields for an Estimation via JSON.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.EstimationsApiController.DownloadAttachment(System.String)">
+            <summary>
+            GET /api/estimations/{id}/download
+            Streams the attached PDF document for download.
+            </summary>
+        </member>
         <member name="T:CrmLeadManagement.Controllers.Api.InvoicesApiController">
             <summary>
             JSON REST API for Invoices module.
@@ -105,6 +141,78 @@
             <summary>
             JSON REST API for Projects module.
             Base route: /api/projects
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Controllers.Api.ProposalsApiController">
+            <summary>
+            Web REST API for Proposals supporting Notes and PDF upload.
+            Base Route: /api/proposals
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.ProposalsApiController.GetAll(System.String)">
+            <summary>
+            GET /api/proposals
+            Retrieves all proposals or filters by leadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.ProposalsApiController.GetById(System.String)">
+            <summary>
+            GET /api/proposals/{id}
+            Retrieves a single proposal by numeric Id, Number (e.g. PRO-2001), or LeadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.ProposalsApiController.SaveProposalForm(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm)">
+            <summary>
+            POST /api/proposals (multipart/form-data or application/x-www-form-urlencoded)
+            Saves Notes and optional PDF attachment for a Proposal.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.ProposalsApiController.SaveProposalJson(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto)">
+            <summary>
+            POST /api/proposals (application/json)
+            Saves Notes and fields for a Proposal via JSON.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.ProposalsApiController.DownloadAttachment(System.String)">
+            <summary>
+            GET /api/proposals/{id}/download
+            Streams the attached PDF document for download.
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Controllers.Api.QuotationsApiController">
+            <summary>
+            Web REST API for Quotations supporting Notes and PDF upload.
+            Base Route: /api/quotations
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.QuotationsApiController.GetAll(System.String)">
+            <summary>
+            GET /api/quotations
+            Retrieves all quotations or filters by leadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.QuotationsApiController.GetById(System.String)">
+            <summary>
+            GET /api/quotations/{id}
+            Retrieves a single quotation by numeric Id, Number (e.g. QUO-2001), or LeadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.QuotationsApiController.SaveQuotationForm(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm)">
+            <summary>
+            POST /api/quotations (multipart/form-data or application/x-www-form-urlencoded)
+            Saves Notes and optional PDF attachment for a Quotation.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.QuotationsApiController.SaveQuotationJson(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto)">
+            <summary>
+            POST /api/quotations (application/json)
+            Saves Notes and fields for a Quotation via JSON.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.Api.QuotationsApiController.DownloadAttachment(System.String)">
+            <summary>
+            GET /api/quotations/{id}/download
+            Streams the attached PDF document for download.
             </summary>
         </member>
         <member name="T:CrmLeadManagement.Controllers.Api.RecurringInvoicesApiController">
@@ -215,6 +323,48 @@
         <member name="M:CrmLeadManagement.Controllers.AppApi.AppAuthController.Register(CrmLeadManagement.Models.Dtos.App.AppRegisterRequest)">
             <summary>
             Optional self-registration endpoint (enabled if Auth:RegistrationMode is Open or ApprovalRequired).
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Controllers.AppApi.AppEstimationsController">
+            <summary>
+            App API V1 endpoints for Estimations.
+            Routes: /api/app/v1/estimations and /api/v1/app/estimations
+            Supports Notes and PDF file attachment via multipart/form-data or application/json.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppEstimationsController.GetAll(System.String)">
+            <summary>
+            GET /api/app/v1/estimations
+            Retrieves all estimations or filters by leadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppEstimationsController.GetById(System.String)">
+            <summary>
+            GET /api/app/v1/estimations/{id}
+            Retrieves a single estimation by numeric Id, Number (e.g. EST-2001), or LeadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppEstimationsController.SaveEstimationForm(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm)">
+            <summary>
+            POST /api/app/v1/estimations
+            Saves Notes and optional PDF attachment for an Estimation (multipart/form-data or form-urlencoded).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppEstimationsController.SaveEstimationJson(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto)">
+            <summary>
+            POST /api/app/v1/estimations
+            Saves Notes and fields for an Estimation (application/json).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppEstimationsController.ProcessSaveEstimation(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm,Microsoft.AspNetCore.Http.IFormFile)">
+            <summary>
+            Core persistence logic for Estimation with Notes and PDF attachment.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppEstimationsController.DownloadAttachment(System.String)">
+            <summary>
+            GET /api/app/v1/estimations/{id}/download
+            Streams the attached PDF document for download.
             </summary>
         </member>
         <member name="T:CrmLeadManagement.Controllers.AppApi.AppLeadsController">
@@ -444,6 +594,80 @@
             <summary>
             DELETE /api/v1/app/projects/{id}
             Safely deletes a project and cascades related tasks and milestones.
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Controllers.AppApi.AppProposalsController">
+            <summary>
+            App API V1 endpoints for Proposals.
+            Routes: /api/app/v1/proposals and /api/v1/app/proposals
+            Supports Notes and PDF file attachment via multipart/form-data or application/json.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppProposalsController.GetAll(System.String)">
+            <summary>
+            GET /api/app/v1/proposals
+            Retrieves all proposals or filters by leadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppProposalsController.GetById(System.String)">
+            <summary>
+            GET /api/app/v1/proposals/{id}
+            Retrieves a single proposal by numeric Id, Number (e.g. PRO-2001), or LeadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppProposalsController.SaveProposalForm(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm)">
+            <summary>
+            POST /api/app/v1/proposals
+            Saves Notes and optional PDF attachment for a Proposal (multipart/form-data or form-urlencoded).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppProposalsController.SaveProposalJson(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto)">
+            <summary>
+            POST /api/app/v1/proposals
+            Saves Notes and fields for a Proposal (application/json).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppProposalsController.DownloadAttachment(System.String)">
+            <summary>
+            GET /api/app/v1/proposals/{id}/download
+            Streams the attached PDF document for download.
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Controllers.AppApi.AppQuotationsController">
+            <summary>
+            App API V1 endpoints for Quotations.
+            Routes: /api/app/v1/quotations and /api/v1/app/quotations
+            Supports Notes and PDF file attachment via multipart/form-data or application/json.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppQuotationsController.GetAll(System.String)">
+            <summary>
+            GET /api/app/v1/quotations
+            Retrieves all quotations or filters by leadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppQuotationsController.GetById(System.String)">
+            <summary>
+            GET /api/app/v1/quotations/{id}
+            Retrieves a single quotation by numeric Id, Number (e.g. QUO-2001), or LeadId.
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppQuotationsController.SaveQuotationForm(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm)">
+            <summary>
+            POST /api/app/v1/quotations
+            Saves Notes and optional PDF attachment for a Quotation (multipart/form-data or form-urlencoded).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppQuotationsController.SaveQuotationJson(CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto)">
+            <summary>
+            POST /api/app/v1/quotations
+            Saves Notes and fields for a Quotation (application/json).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Controllers.AppApi.AppQuotationsController.DownloadAttachment(System.String)">
+            <summary>
+            GET /api/app/v1/quotations/{id}/download
+            Streams the attached PDF document for download.
             </summary>
         </member>
         <member name="T:CrmLeadManagement.Controllers.AppApi.AppSystemSettingsController">
@@ -894,6 +1118,16 @@
         <member name="T:CrmLeadManagement.Models.Dtos.LeadCountSummaryDto">
             <summary>Summary of lead counts overall, by assignment, by status, and by priority.</summary>
         </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.LeadFinanceUploadForm">
+            <summary>
+            Form-data model for uploading Notes and PDF Attachment for Estimation, Quotation, or Proposal.
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.LeadFinanceUploadResponse">
+            <summary>
+            JSON response model returning saved finance attachment record.
+            </summary>
+        </member>
         <member name="T:CrmLeadManagement.Models.Dtos.App.AppLoginRequest">
             <summary>Request payload for mobile app login</summary>
         </member>
@@ -1049,6 +1283,76 @@
             Wrapper for work reports response including both summary totals and paginated items.
             </summary>
         </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.AppFinanceItemDto">
+            <summary>
+            Data transfer object for Estimation, Quotation, and Proposal records in App and Web APIs.
+            Includes Notes, attachment metadata, full accessible URLs, and download endpoints.
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.AppFinanceAttachmentDto">
+            <summary>
+            Detailed attachment info for an uploaded PDF.
+            </summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm">
+            <summary>
+            Form-data request model for saving an Estimation, Quotation, or Proposal.
+            Supports Notes, PDF file upload (as attachment, file, or pdf), and leadId.
+            </summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.LeadId">
+            <summary>Target Lead ID (e.g., LD-1001 or numeric ID). Required when creating a new record if not editing.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Notes">
+            <summary>Notes / Description text for the record.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Attachment">
+            <summary>Uploaded PDF file.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.File">
+            <summary>Alternative parameter names for uploaded PDF file.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Number">
+            <summary>Existing number (e.g. EST-2001) if editing an existing record.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Date">
+            <summary>Document date in yyyy-MM-dd format (defaults to current UTC date).</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Title">
+            <summary>Proposal Title (used by Proposal module).</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.ProjectRequirement">
+            <summary>Project or Requirement description.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Status">
+            <summary>Status (e.g. Draft, Sent, Accepted, Declined).</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.ValidUntil">
+            <summary>Validity date (yyyy-MM-dd).</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.TermsConditions">
+            <summary>Commercial terms and conditions.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Subtotal">
+            <summary>Subtotal amount.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Discount">
+            <summary>Discount amount.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Tax">
+            <summary>Tax amount.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.Total">
+            <summary>Final/Grand Total amount.</summary>
+        </member>
+        <member name="P:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateForm.ResolvedFile">
+            <summary>Resolves the uploaded file from Attachment, File, Pdf, AttachPdf, etc.</summary>
+        </member>
+        <member name="T:CrmLeadManagement.Models.Dtos.App.AppFinanceCreateJsonDto">
+            <summary>
+            JSON request model for saving an Estimation, Quotation, or Proposal via application/json.
+            </summary>
+        </member>
         <member name="T:CrmLeadManagement.Models.Dtos.App.FlexibleStringConverter">
             <summary>Accepts both "1200" and 1200 from the mobile app and stores it as string.</summary>
         </member>
@@ -1098,6 +1402,19 @@
             Saves the uploaded file (if any) under {UploadsPath}/finance/{kind}/ and returns
             (relativePath, originalFileName, error). If <paramref name="file"/> is null/empty,
             returns empty values with no error (caller keeps whatever attachment already existed).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Models.FinanceAttachmentService.SavePdfAsync(Microsoft.AspNetCore.Http.IFormFile,System.String)">
+            <summary>
+            Validates and saves a PDF attachment. Validates that the file is not empty,
+            is under MaxFileSizeBytes (10 MB), and has the .pdf extension and valid PDF header.
+            Returns (relativePath, originalFileName, error).
+            If file is null or empty, returns ("", "", null).
+            </summary>
+        </member>
+        <member name="M:CrmLeadManagement.Models.FinanceAttachmentService.GetPhysicalPath(System.String)">
+            <summary>
+            Gets the absolute physical file path for a relative attachment path.
             </summary>
         </member>
         <member name="M:CrmLeadManagement.Models.FinanceAttachmentService.Delete(System.String)">

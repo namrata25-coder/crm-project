@@ -580,3 +580,176 @@ Accept: application/json
   "defaultFollowUpType": "Meeting",
   "autoEscalateAfterDaysOverdue": 4
 }
+
+
+###############################################################################
+# 8. ESTIMATIONS, QUOTATIONS & PROPOSALS V1 APP APIS
+###############################################################################
+
+### 8.1 Create Estimation with PDF (POST /api/app/v1/estimations - multipart/form-data)
+POST {{baseUrl}}/api/app/v1/estimations
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="leadId"
+
+LD-1001
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="notes"
+
+Commercial estimation for backend API development and cloud setup.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="projectRequirement"
+
+Full-Stack Cloud Migration
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="attachment"; filename="estimate_scope.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 sample content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+### 8.1b Create Estimation without PDF (POST /api/app/v1/estimations - application/json)
+POST {{baseUrl}}/api/app/v1/estimations
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "leadId": "LD-1001",
+  "notes": "Estimation notes submitted via raw JSON payload without PDF attachment.",
+  "projectRequirement": "Web & Mobile API Integration",
+  "status": "Draft"
+}
+
+
+### 8.2 Get Estimation by Number or ID (GET /api/app/v1/estimations/{id})
+GET {{baseUrl}}/api/app/v1/estimations/EST-2001
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+
+### 8.3 Download Estimation PDF (GET /api/app/v1/estimations/{id}/download)
+GET {{baseUrl}}/api/app/v1/estimations/EST-2001/download
+Authorization: Bearer {{adminToken}}
+
+
+### 8.4 Create Quotation (POST /api/app/v1/quotations)
+POST {{baseUrl}}/api/app/v1/quotations
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="leadId"
+
+LD-1001
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="notes"
+
+Formal quotation for cross-platform mobile application development.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="attachment"; filename="formal_quote.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 sample quote content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+### 8.5 Get Quotation by Number or ID (GET /api/app/v1/quotations/{id})
+GET {{baseUrl}}/api/app/v1/quotations/QUO-2001
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+
+### 8.6 Download Quotation PDF (GET /api/app/v1/quotations/{id}/download)
+GET {{baseUrl}}/api/app/v1/quotations/QUO-2001/download
+Authorization: Bearer {{adminToken}}
+
+
+### 8.7 Create Proposal (POST /api/app/v1/proposals)
+POST {{baseUrl}}/api/app/v1/proposals
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="leadId"
+
+LD-1001
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="title"
+
+Comprehensive CRM Modernization Proposal
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="notes"
+
+Complete scope covering database architecture, web portal, and mobile apps.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="attachment"; filename="proposal_document.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 sample proposal content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+### 8.8 Get Proposal by Number or ID (GET /api/app/v1/proposals/{id})
+GET {{baseUrl}}/api/app/v1/proposals/PRO-2001
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+
+### 8.9 Download Proposal PDF (GET /api/app/v1/proposals/{id}/download)
+GET {{baseUrl}}/api/app/v1/proposals/PRO-2001/download
+Authorization: Bearer {{adminToken}}
+
+
+### 8.10 Create Estimation under Lead {id} (POST /api/leads/{id}/estimations - multipart/form-data)
+POST {{baseUrl}}/api/leads/21/estimations
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="Notes"
+
+Commercial estimation for backend API development and cloud setup.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="Attachment"; filename="Scope_Estimate_v1.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 sample content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+### 8.11 Create Quotation under Lead {id} (POST /api/leads/{id}/quotations - multipart/form-data)
+POST {{baseUrl}}/api/leads/21/quotations
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="Notes"
+
+Formal quotation for mobile app sprints and UI prototypes.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="Attachment"; filename="Formal_Quotation.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 sample quote content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+### 8.12 Create Proposal under Lead {id} (POST /api/leads/{id}/proposals - multipart/form-data)
+POST {{baseUrl}}/api/leads/21/proposals
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="Notes"
+
+Comprehensive project proposal and SLA deliverables.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="Attachment"; filename="Final_Proposal.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 sample proposal content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+

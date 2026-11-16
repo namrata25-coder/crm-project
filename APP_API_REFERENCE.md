@@ -1668,3 +1668,183 @@ Accept: application/json
   "data": { ... }
 }
 ```
+
+
+---
+
+## 9. Estimations, Quotations & Proposals Module (V1 App API + Web API)
+
+This module provides versioned V1 App API endpoints and Web API endpoints for managing Estimations, Quotations, and Proposals with Notes and PDF attachment uploads (`multipart/form-data`).
+
+### Base Routes
+- **App API (V1)**: `/api/app/v1/estimations`, `/api/app/v1/quotations`, `/api/app/v1/proposals`
+- **Web API**: `/api/estimations`, `/api/quotations`, `/api/proposals`
+
+---
+
+### 9.1 Save Estimation (`POST /api/app/v1/estimations`)
+Saves Notes and attaches an optional PDF document to a lead's estimation. Supports both `multipart/form-data` (for file upload) and `application/json`.
+
+- **Method**: `POST`
+- **Route**: `/api/app/v1/estimations` (alias `/api/v1/app/estimations`)
+- **Headers**:
+  - `Authorization: Bearer <access_token>` *(optional in development/testing)*
+  - `Content-Type: multipart/form-data` *(when uploading PDF file; do NOT set boundary manually in Postman)*
+    - OR `Content-Type: application/json` *(when sending raw JSON)*
+  - `Accept: application/json`
+
+#### Option A: Request Body (`multipart/form-data` for Notes + PDF File)
+| Form Field | Type | Required | Description / Supported Parameter Names |
+|---|---|---|---|
+| `notes` | `text` | Yes | Notes text (also accepts `Notes`, `description`, `remarks`) |
+| `attachment` | `file` | Optional | PDF file (also accepts `attachPdf`, `pdf`, `file`, `document`) |
+| `leadId` | `text` | Optional | Target Lead ID (e.g. `LD-1001` or numeric ID). Auto-resolves to default client if omitted |
+| `number` | `text` | Optional | Existing estimation number (e.g., `EST-2001`) if updating an existing record |
+| `date` | `text` | Optional | Date (`yyyy-MM-dd`), defaults to current date |
+| `projectRequirement` | `text` | Optional | Project requirement / scope description |
+| `status` | `text` | Optional | Status (`Draft`, `Sent`, `Approved`, `Declined`), defaults to `Draft` |
+
+#### Option B: Request Body (`application/json` for Notes)
+```json
+{
+  "leadId": "LD-1001",
+  "notes": "Commercial estimation for cloud migration and database architecture.",
+  "projectRequirement": "Cloud Migration",
+  "status": "Draft",
+  "date": "2026-11-16"
+}
+```
+
+#### Success Response (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Estimation EST-2002 saved successfully.",
+  "data": {
+    "id": 2,
+    "number": "EST-2002",
+    "module": "Estimation",
+    "leadId": "LD-1001",
+    "leadName": "Rajesh Kumar",
+    "companyName": "TechCorp India",
+    "leadCustomer": "Rajesh Kumar (TechCorp India)",
+    "date": "2026-11-16",
+    "notes": "Commercial estimation for cloud migration and database architecture.",
+    "status": "Draft",
+    "attachmentPath": "/uploads/finance/estimations/12345678-abcd-ef01-2345-6789abcdef01.pdf",
+    "attachmentFileName": "Scope_Estimate_v1.pdf",
+    "attachmentUrl": "http://localhost:5000/uploads/finance/estimations/12345678-abcd-ef01-2345-6789abcdef01.pdf",
+    "downloadUrl": "http://localhost:5000/api/app/v1/estimations/EST-2002/download",
+    "hasAttachment": true,
+    "attachment": {
+      "fileName": "Scope_Estimate_v1.pdf",
+      "relativePath": "/uploads/finance/estimations/12345678-abcd-ef01-2345-6789abcdef01.pdf",
+      "fileUrl": "http://localhost:5000/uploads/finance/estimations/12345678-abcd-ef01-2345-6789abcdef01.pdf",
+      "downloadUrl": "http://localhost:5000/api/app/v1/estimations/EST-2002/download",
+      "hasAttachment": true
+    }
+  }
+}
+```
+
+---
+
+### 9.2 Get Estimation (`GET /api/app/v1/estimations/{id}`)
+Retrieves estimation details by estimation number (`EST-2001`), database `id`, or `leadId`.
+
+- **Method**: `GET`
+- **Route**: `/api/app/v1/estimations/{id}`
+- **Headers**:
+  - `Authorization: Bearer <access_token>`
+  - `Accept: application/json`
+
+---
+
+### 9.3 Save Quotation (`POST /api/app/v1/quotations`)
+Saves Notes and attaches a PDF document to a lead's quotation using `multipart/form-data`.
+
+- **Method**: `POST`
+- **Route**: `/api/app/v1/quotations`
+- **Headers**:
+  - `Authorization: Bearer <access_token>`
+  - `Content-Type: multipart/form-data`
+  - `Accept: application/json`
+
+#### Success Response (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Quotation QUO-2002 saved successfully.",
+  "data": {
+    "id": 2,
+    "number": "QUO-2002",
+    "module": "Quotation",
+    "leadId": "LD-1001",
+    "leadName": "Rajesh Kumar",
+    "companyName": "TechCorp India",
+    "date": "2026-11-16",
+    "notes": "Quotation covering mobile app sprints and UI prototypes.",
+    "status": "Draft",
+    "attachmentPath": "/uploads/finance/quotations/98765432-abcd-ef01-2345-6789abcdef01.pdf",
+    "attachmentFileName": "Formal_Quotation.pdf",
+    "attachmentUrl": "http://localhost:5000/uploads/finance/quotations/98765432-abcd-ef01-2345-6789abcdef01.pdf",
+    "downloadUrl": "http://localhost:5000/api/app/v1/quotations/QUO-2002/download",
+    "hasAttachment": true
+  }
+}
+```
+
+---
+
+### 9.4 Get Quotation (`GET /api/app/v1/quotations/{id}`)
+Retrieves quotation details by quotation number (`QUO-2001`), database `id`, or `leadId`.
+
+- **Method**: `GET`
+- **Route**: `/api/app/v1/quotations/{id}`
+
+---
+
+### 9.5 Save Proposal (`POST /api/app/v1/proposals`)
+Saves Notes and attaches a PDF document to a lead's proposal using `multipart/form-data`.
+
+- **Method**: `POST`
+- **Route**: `/api/app/v1/proposals`
+- **Headers**:
+  - `Authorization: Bearer <access_token>`
+  - `Content-Type: multipart/form-data`
+  - `Accept: application/json`
+
+#### Success Response (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Proposal PRO-2002 saved successfully.",
+  "data": {
+    "id": 2,
+    "number": "PRO-2002",
+    "module": "Proposal",
+    "leadId": "LD-1001",
+    "leadName": "Rajesh Kumar",
+    "companyName": "TechCorp India",
+    "title": "Comprehensive CRM Modernization Proposal",
+    "date": "2026-11-16",
+    "notes": "Complete proposal scope and SLA deliverables.",
+    "status": "Draft",
+    "attachmentPath": "/uploads/finance/proposals/456789ab-cdef-0123-4567-89abcdef0123.pdf",
+    "attachmentFileName": "Final_Proposal.pdf",
+    "attachmentUrl": "http://localhost:5000/uploads/finance/proposals/456789ab-cdef-0123-4567-89abcdef0123.pdf",
+    "downloadUrl": "http://localhost:5000/api/app/v1/proposals/PRO-2002/download",
+    "hasAttachment": true
+  }
+}
+```
+
+---
+
+### 9.6 Get Proposal (`GET /api/app/v1/proposals/{id}`)
+Retrieves proposal details by proposal number (`PRO-2001`), database `id`, or `leadId`.
+
+- **Method**: `GET`
+- **Route**: `/api/app/v1/proposals/{id}`
+
+

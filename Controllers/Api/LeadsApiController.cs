@@ -1,3 +1,4 @@
+using System.IO;
 using CrmLeadManagement.Models;
 using CrmLeadManagement.Models.Dtos;
 using CrmLeadManagement.Security;
@@ -565,15 +566,71 @@ public class LeadsApiController : ControllerBase
 
     // POST /api/leads/{id}/estimations
     [HttpPost("{id}/estimations")]
-    public async Task<IActionResult> AddEstimation(string id, [FromBody] EstimationRequest request)
+    [HttpPost("/api/app/v1/leads/{id}/estimations")]
+    [HttpPost("/api/v1/app/leads/{id}/estimations")]
+    [Consumes("multipart/form-data")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AddEstimation(string id, [FromForm] LeadFinanceUploadForm form)
     {
-        if (request is null || request.Items is null || request.Items.Count == 0)
-            return BadRequest(new ApiError { Message = "At least one line item is required." });
+        var notes = (form.Notes ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            return BadRequest(new ApiError { Message = "Notes is required." });
+        }
 
-        var lead = LeadStore.GetById(id);
-        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ApiError { Message = "Attachment PDF file is required." });
+        }
 
-        var entry = BuildEstimation(lead, LeadStore.NextEstimationNumber(), request);
+        if (file.Length > 10 * 1024 * 1024)
+        {
+            return BadRequest(new ApiError { Message = "Attachment is too large. Maximum allowed size is 10 MB." });
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var contentType = file.ContentType?.ToLowerInvariant() ?? "";
+        if (ext != ".pdf" && !contentType.Contains("pdf"))
+        {
+            return BadRequest(new ApiError { Message = "Invalid file format. Only PDF files (.pdf) are allowed." });
+        }
+
+        Lead? lead = null;
+        if (int.TryParse(id, out var numId))
+        {
+            lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == numId || l.LeadId == id);
+        }
+        if (lead is null)
+        {
+            lead = await _db.Leads.FirstOrDefaultAsync(l => l.LeadId == id);
+        }
+        if (lead is null)
+        {
+            lead = LeadStore.GetById(id);
+        }
+        if (lead is null)
+        {
+            return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        }
+
+        var (attPath, attName, attError) = await FinanceAttachmentService.SavePdfAsync(file, "estimations");
+        if (attError is not null)
+        {
+            return BadRequest(new ApiError { Message = attError });
+        }
+
+        var entry = new EstimationEntry
+        {
+            Number = LeadStore.NextEstimationNumber(),
+            Notes = notes,
+            Date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = "Draft",
+            LeadCustomer = $"{lead.LeadName} ({lead.CompanyName})",
+            AttachmentPath = attPath,
+            AttachmentFileName = attName
+        };
+
         lead.Estimations.Add(entry);
 
         if (!await TrySaveAsync($"create estimation for lead '{id}'"))
@@ -581,13 +638,15 @@ public class LeadsApiController : ControllerBase
             return StatusCode(500, new ApiError { Message = "Failed to create estimation." });
         }
 
-        return Ok(new
+        return Ok(new LeadFinanceUploadResponse
         {
-            success = true,
-            message = "Estimation created successfully",
-            id = entry.Id,
-            number = entry.Number,
-            estimation = entry
+            Number = entry.Number ?? "",
+            Notes = entry.Notes ?? "",
+            Date = entry.Date ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = entry.Status ?? "Draft",
+            AttachmentPath = entry.AttachmentPath ?? "",
+            AttachmentFileName = entry.AttachmentFileName ?? "",
+            HasAttachment = true
         });
     }
 
@@ -645,18 +704,88 @@ public class LeadsApiController : ControllerBase
 
     // POST /api/leads/{id}/quotations
     [HttpPost("{id}/quotations")]
-    public async Task<IActionResult> AddQuotation(string id, [FromBody] QuotationRequest request)
+    [HttpPost("/api/app/v1/leads/{id}/quotations")]
+    [HttpPost("/api/v1/app/leads/{id}/quotations")]
+    [Consumes("multipart/form-data")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AddQuotation(string id, [FromForm] LeadFinanceUploadForm form)
     {
-        var lead = LeadStore.GetById(id);
-        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        var notes = (form.Notes ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            return BadRequest(new ApiError { Message = "Notes is required." });
+        }
 
-        var entry = BuildQuotation(lead, LeadStore.NextQuotationNumber(), request);
+        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ApiError { Message = "Attachment PDF file is required." });
+        }
+
+        if (file.Length > 10 * 1024 * 1024)
+        {
+            return BadRequest(new ApiError { Message = "Attachment is too large. Maximum allowed size is 10 MB." });
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var contentType = file.ContentType?.ToLowerInvariant() ?? "";
+        if (ext != ".pdf" && !contentType.Contains("pdf"))
+        {
+            return BadRequest(new ApiError { Message = "Invalid file format. Only PDF files (.pdf) are allowed." });
+        }
+
+        Lead? lead = null;
+        if (int.TryParse(id, out var numId))
+        {
+            lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == numId || l.LeadId == id);
+        }
+        if (lead is null)
+        {
+            lead = await _db.Leads.FirstOrDefaultAsync(l => l.LeadId == id);
+        }
+        if (lead is null)
+        {
+            lead = LeadStore.GetById(id);
+        }
+        if (lead is null)
+        {
+            return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        }
+
+        var (attPath, attName, attError) = await FinanceAttachmentService.SavePdfAsync(file, "quotations");
+        if (attError is not null)
+        {
+            return BadRequest(new ApiError { Message = attError });
+        }
+
+        var entry = new QuotationEntry
+        {
+            Number = LeadStore.NextQuotationNumber(),
+            Notes = notes,
+            Date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = "Draft",
+            LeadCustomer = $"{lead.LeadName} ({lead.CompanyName})",
+            AttachmentPath = attPath,
+            AttachmentFileName = attName
+        };
+
         lead.Quotations.Add(entry);
 
         if (!await TrySaveAsync($"create quotation for lead '{id}'"))
+        {
             return StatusCode(500, new ApiError { Message = "Failed to create quotation." });
+        }
 
-        return Ok(new { success = true, message = "Quotation created successfully", id = entry.Id, number = entry.Number, quotation = entry });
+        return Ok(new LeadFinanceUploadResponse
+        {
+            Number = entry.Number ?? "",
+            Notes = entry.Notes ?? "",
+            Date = entry.Date ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = entry.Status ?? "Draft",
+            AttachmentPath = entry.AttachmentPath ?? "",
+            AttachmentFileName = entry.AttachmentFileName ?? "",
+            HasAttachment = true
+        });
     }
 
     // PUT /api/leads/{id}/quotations/{number}
@@ -709,21 +838,88 @@ public class LeadsApiController : ControllerBase
 
     // POST /api/leads/{id}/proposals
     [HttpPost("{id}/proposals")]
-    public async Task<IActionResult> AddProposal(string id, [FromBody] ProposalRequest request)
+    [HttpPost("/api/app/v1/leads/{id}/proposals")]
+    [HttpPost("/api/v1/app/leads/{id}/proposals")]
+    [Consumes("multipart/form-data")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AddProposal(string id, [FromForm] LeadFinanceUploadForm form)
     {
-        var lead = LeadStore.GetById(id);
-        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        var notes = (form.Notes ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            return BadRequest(new ApiError { Message = "Notes is required." });
+        }
 
-        if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(new ApiError { Message = "Title is required." });
+        var file = form.ResolvedFile ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ApiError { Message = "Attachment PDF file is required." });
+        }
 
-        var entry = BuildProposal(lead, LeadStore.NextProposalNumber(), request);
+        if (file.Length > 10 * 1024 * 1024)
+        {
+            return BadRequest(new ApiError { Message = "Attachment is too large. Maximum allowed size is 10 MB." });
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var contentType = file.ContentType?.ToLowerInvariant() ?? "";
+        if (ext != ".pdf" && !contentType.Contains("pdf"))
+        {
+            return BadRequest(new ApiError { Message = "Invalid file format. Only PDF files (.pdf) are allowed." });
+        }
+
+        Lead? lead = null;
+        if (int.TryParse(id, out var numId))
+        {
+            lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == numId || l.LeadId == id);
+        }
+        if (lead is null)
+        {
+            lead = await _db.Leads.FirstOrDefaultAsync(l => l.LeadId == id);
+        }
+        if (lead is null)
+        {
+            lead = LeadStore.GetById(id);
+        }
+        if (lead is null)
+        {
+            return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        }
+
+        var (attPath, attName, attError) = await FinanceAttachmentService.SavePdfAsync(file, "proposals");
+        if (attError is not null)
+        {
+            return BadRequest(new ApiError { Message = attError });
+        }
+
+        var entry = new ProposalEntry
+        {
+            Number = LeadStore.NextProposalNumber(),
+            Notes = notes,
+            Date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = "Draft",
+            LeadCustomer = $"{lead.LeadName} ({lead.CompanyName})",
+            AttachmentPath = attPath,
+            AttachmentFileName = attName
+        };
+
         lead.Proposals.Add(entry);
 
         if (!await TrySaveAsync($"create proposal for lead '{id}'"))
+        {
             return StatusCode(500, new ApiError { Message = "Failed to create proposal." });
+        }
 
-        return Ok(new { success = true, message = "Proposal created successfully", id = entry.Id, number = entry.Number, proposal = entry });
+        return Ok(new LeadFinanceUploadResponse
+        {
+            Number = entry.Number ?? "",
+            Notes = entry.Notes ?? "",
+            Date = entry.Date ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = entry.Status ?? "Draft",
+            AttachmentPath = entry.AttachmentPath ?? "",
+            AttachmentFileName = entry.AttachmentFileName ?? "",
+            HasAttachment = true
+        });
     }
 
     // PUT /api/leads/{id}/proposals/{number}
