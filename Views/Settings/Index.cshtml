@@ -50,6 +50,43 @@
         </div>
     </div>
 
+@if (ViewData["IsAdminPanel"] is true)
+{
+    <!-- ============ LEAD SOURCES (ADMIN ONLY) ============ -->
+    <div class="panel" id="lead-sources" style="margin-bottom:22px;">
+        <div class="panel-header">
+            <div>
+                <h2><i class="bi bi-megaphone" style="color:var(--brand-600);margin-right:6px;"></i> Lead Sources</h2>
+                <div class="hint">Manage the sources available when creating or editing leads</div>
+            </div>
+        </div>
+        <div class="panel-body">
+            <form method="post" asp-controller="Settings" asp-action="AddSource" style="display:flex;gap:10px;margin-bottom:18px;">
+                <input type="text" name="NewSource" placeholder="e.g., Website" required
+                       style="flex:1;border:1px solid var(--ink-300);border-radius:8px;padding:9px 12px;font-size:13.5px;" />
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add</button>
+            </form>
+
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                @foreach (var source in Model.Sources)
+                {
+                    <div style="display:flex;align-items:center;gap:8px;background:var(--ink-100);border-radius:20px;padding:6px 8px 6px 14px;font-size:13px;font-weight:600;color:var(--ink-700);">
+                        <span>@source</span>
+                        <form method="post" asp-controller="Settings" asp-action="RemoveSource" style="display:inline;">
+                            <input type="hidden" name="source" value="@source" />
+                            <button type="submit" class="icon-btn" style="width:24px;height:24px;border:none;background:transparent;color:var(--ink-500);" title="Remove">
+                                <i class="bi bi-x-lg" style="font-size:11px;"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <partial name="_RequirementCategories" model="Model" />
+}
+
 <!-- ============ FOLLOW-UP SETTINGS ============ -->
 <div class="panel" id="followup-settings" style="margin-bottom:22px;">
     <div class="panel-header">

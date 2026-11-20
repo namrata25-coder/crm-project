@@ -71,6 +71,21 @@ public static class SettingsStore
 
     public static List<string> Sources => DbAccessor.Db.SourceOptions.OrderBy(s => s.Id).Select(s => s.Value).ToList();
 
+    public static List<string> RequirementTypes
+    {
+        get
+        {
+            var list = DbAccessor.Db.RequirementTypeOptions.OrderBy(r => r.Id).Select(r => r.Value).ToList();
+            if (list.Count == 0)
+            {
+                return new List<string> { "Material", "Service", "Product", "Price Quote", "Demo", "Other" };
+            }
+            return list;
+        }
+    }
+
+    public static List<string> RequirementCategories => RequirementTypes;
+
     public static List<UserRoleEntry> Users => DbAccessor.Db.Users.OrderBy(u => u.Id).ToList();
 
     /// <summary>Employee names, sourced from Users/Roles so Assign dropdowns stay in sync with Settings.</summary>
@@ -137,6 +152,33 @@ public static class SettingsStore
             db.SaveChanges();
         }
     }
+
+    public static void AddRequirementType(string type)
+    {
+        type = type.Trim();
+        if (string.IsNullOrWhiteSpace(type)) return;
+        var db = DbAccessor.Db;
+        if (!db.RequirementTypeOptions.Any(r => r.Value.ToLower() == type.ToLower()))
+        {
+            db.RequirementTypeOptions.Add(new RequirementTypeOption { Value = type });
+            db.SaveChanges();
+        }
+    }
+
+    public static void RemoveRequirementType(string type)
+    {
+        var db = DbAccessor.Db;
+        var existing = db.RequirementTypeOptions.FirstOrDefault(r => r.Value.ToLower() == type.ToLower());
+        if (existing is not null)
+        {
+            db.RequirementTypeOptions.Remove(existing);
+            db.SaveChanges();
+        }
+    }
+
+    public static void AddRequirementCategory(string category) => AddRequirementType(category);
+
+    public static void RemoveRequirementCategory(string category) => RemoveRequirementType(category);
 
     public static string AddUser(UserRoleEntry user, string? customPassword = null)
     {
@@ -313,6 +355,13 @@ public static class SettingsStore
             db.SourceOptions.AddRange(
                 new[] { "Website", "Referral", "Cold Call", "Social Media", "Trade Show", "Advertisement", "Partner" }
                     .Select(v => new LeadSourceOption { Value = v }));
+        }
+
+        if (!db.RequirementTypeOptions.Any())
+        {
+            db.RequirementTypeOptions.AddRange(
+                new[] { "Material", "Service", "Product", "Price Quote", "Demo", "Other" }
+                    .Select(v => new RequirementTypeOption { Value = v }));
         }
 
         if (!db.Users.Any())

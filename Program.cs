@@ -121,6 +121,7 @@ builder.Services.AddHttpContextAccessor();
 // Authentication: Cookie scheme for browser sessions + Bearer scheme for API/mobile
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;

@@ -1,15 +1,29 @@
 @model CrmLeadManagement.Models.Lead
+@using System.Globalization
 @{
     var lead = Model!;
     var activeTab = ViewData["ActiveTab"] as string ?? "call";
-    var activeFinanceSubTab = ViewData["ActiveFinanceSubTab"] as string ?? "estimation";
+    var activeFinanceSubTab = ViewData["ActiveFinanceSubTab"] as string ?? "quotation";
     var requirementError = TempData["RequirementError"] as string;
-    var estimationError = TempData["EstimationError"] as string;
     var quotationError = TempData["QuotationError"] as string;
     var proposalError = TempData["ProposalError"] as string;
     var latestCall = lead.CallHistory.Count > 0 ? lead.CallHistory[^1] : null;
     var latestFollowUp = lead.FollowUps.Count > 0 ? lead.FollowUps[^1] : null;
     var latestVisit = lead.Visits.Count > 0 ? lead.Visits[^1] : null;
+    (string Label, string Value)[] RequirementDimensions(params (string Label, string? Value)[] values) =>
+        values.Where(value => !string.IsNullOrWhiteSpace(value.Value))
+            .Select(value => (value.Label, value.Value!))
+            .ToArray();
+    string RequirementCurrency(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "—";
+
+        var normalized = raw.Trim().Replace("₹", "").Replace(",", "");
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)
+            ? amount.ToString("C2", CultureInfo.GetCultureInfo("en-IN"))
+            : raw;
+    }
 }
 
 <div class="breadcrumb-row">
@@ -33,9 +47,6 @@
         </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <button type="button" class="btn btn-primary btn-sm" onclick="switchLeadTab('followup'); openAddFollowUpModal();">
-            <i class="bi bi-calendar-plus"></i> Add Follow-up
-        </button>
         <a asp-controller="Lead" asp-action="List" class="btn btn-ghost btn-sm"><i class="bi bi-arrow-left"></i> Back to Lead List</a>
     </div>
 </div>
@@ -207,28 +218,18 @@
             }
 
             <div id="addRequirementForm" class="req-add-form" style="display:none;">
-                <form method="post" asp-controller="Lead" asp-action="AddRequirement" enctype="multipart/form-data">
+                <form id="requirementForm" method="post" asp-controller="Lead" asp-action="AddRequirement" enctype="multipart/form-data">
                     <input type="hidden" name="leadId" value="@lead.LeadId" />
-                    
+
+                    <input type="hidden" name="itemizedRequirement" value="true" />
                     <div style="font-weight:700;font-size:15px;color:var(--ink-800);margin-bottom:12px;">Basic Requirement Details</div>
                     <div class="form-grid">
-                        <div class="form-field full">
-                            <label>Requirement Title / Subject</label>
-                            <input type="text" name="title" placeholder="e.g., UPVC Windows & Doors Project" />
-                        </div>
                         <div class="form-field">
                             <label>Priority</label>
                             <select name="priority">
                                 @foreach (var p in LookupData.Priorities)
                                 {
-                                    if (p == "Medium")
-                                    {
-                                        <option value="@p" selected>@p</option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@p">@p</option>
-                                    }
+                                    <option value="@p" selected="@(p == "Medium")">@p</option>
                                 }
                             </select>
                         </div>
@@ -237,16 +238,13 @@
                             <select name="status">
                                 @foreach (var s in LookupData.RequirementStatuses)
                                 {
-                                    if (s == "New")
-                                    {
-                                        <option value="@s" selected>@s</option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@s">@s</option>
-                                    }
+                                    <option value="@s" selected="@(s == "New")">@s</option>
                                 }
                             </select>
+                        </div>
+                        <div class="form-field full">
+                            <label>Requirement Title / Subject</label>
+                            <input type="text" name="title" placeholder="e.g., UPVC Windows &amp; Doors Project" />
                         </div>
                         <div class="form-field">
                             <label>Expected Date</label>
@@ -263,19 +261,28 @@
                     </div>
 
                     <div class="divider-line" style="margin:16px 0;"></div>
-
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                         <div>
                             <span style="font-weight:700;font-size:14px;color:var(--ink-800);">Item Specifications</span>
                             <span style="font-size:12px;color:var(--ink-500);margin-left:8px;">(Add individual items in table format)</span>
+                            <div class="hint" style="margin-top:4px;">Category options are managed in Settings. Other item details are entered directly.</div>
                         </div>
                         <button type="button" id="addRequirementItemBtn" class="btn btn-primary btn-sm" onclick="addRequirementItem()">
                             <i class="bi bi-plus-lg"></i> Add Item
                         </button>
                     </div>
-
+                    @if (LookupData.RequirementCategories.Count == 0)
+                    {
+                        <div class="form-error-banner" style="margin-bottom:12px;">No requirement categories are configured. Add a category in Settings before saving an item.</div>
+                    }
+                    <template id="requirementCategoryOptions">
+                        @foreach (var category in LookupData.RequirementCategories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </template>
                     <div class="table-wrap req-table-wrap" style="overflow-x:auto;margin-bottom:18px;border:1px solid var(--line);border-radius:10px;background:#fff;">
-                        <table class="data-table req-items-table" style="width:100%;min-width:1250px;border-collapse:collapse;margin:0;">
+                        <table class="data-table req-items-table" style="width:100%;min-width:1530px;border-collapse:collapse;margin:0;">
                             <thead>
                                 <tr style="background:var(--ink-50,#f8fafc);border-bottom:1px solid var(--line);">
                                     <th style="width:55px;text-align:center;font-size:12px;font-weight:700;padding:10px 6px;">S.No.</th>
@@ -291,12 +298,14 @@
                                     <th style="min-width:125px;font-size:12px;font-weight:700;padding:10px 8px;">Types</th>
                                     <th style="min-width:115px;font-size:12px;font-weight:700;padding:10px 8px;">Topology</th>
                                     <th style="min-width:130px;font-size:12px;font-weight:700;padding:10px 8px;">Glass</th>
+                                    <th style="width:110px;min-width:110px;font-size:12px;font-weight:700;padding:10px 6px;">QTY</th>
+                                    <th style="min-width:120px;font-size:12px;font-weight:700;padding:10px 8px;">Area (Sq.Ft) Charge</th>
+                                    <th style="min-width:120px;font-size:12px;font-weight:700;padding:10px 8px;">Amount</th>
                                     <th style="min-width:180px;font-size:12px;font-weight:700;padding:10px 8px;text-align:center;">Photo / Image</th>
                                     <th style="width:45px;text-align:center;padding:10px 4px;"></th>
                                 </tr>
                             </thead>
-                            <tbody id="requirementItemsTbody">
-                            </tbody>
+                            <tbody id="requirementItemsTbody"></tbody>
                         </table>
                         <div id="reqItemsEmptyHint" style="padding:22px;text-align:center;color:var(--ink-400);font-size:13px;">
                             <i class="bi bi-table" style="font-size:20px;display:block;margin-bottom:6px;color:var(--ink-300);"></i>
@@ -313,37 +322,174 @@
 
             <div class="divider-line"></div>
 
-            <div class="section-title">Saved Requirements</div>
+            <div class="section-title" style="justify-content:space-between;">
+                <span>Saved Requirements</span>
+                @if (lead.Requirements.Count > 0)
+                {
+                    <a asp-controller="Lead" asp-action="RequirementDocument" asp-route-id="@lead.LeadId" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
+                        <i class="bi bi-file-earmark-text"></i> Full Page / Print
+                    </a>
+                }
+            </div>
             @if (lead.Requirements.Count == 0)
             {
                 <div class="empty-state"><i class="bi bi-inbox"></i><p>No requirements added yet.</p></div>
             }
             else
             {
-                @foreach (var r in lead.Requirements.AsEnumerable().Reverse())
-                {
-                    <div class="req-card">
-                        <div class="row1">
-                            <span class="badge-priority pr-@(r.Priority?.ToLower() ?? "medium")">@(r.Priority ?? "Medium") priority</span>
-                            <span class="badge-status st-new">@(r.Status ?? "New")</span>
-                        </div>
-                        <div style="font-weight:700;font-size:14px;margin:6px 0 4px;">@(string.IsNullOrWhiteSpace(r.Title) ? r.ItemName : r.Title)</div>
-                        @if (!string.IsNullOrWhiteSpace(r.Description))
-                        {
-                            <div style="font-size:13px;color:var(--ink-700);margin-bottom:6px;">@r.Description</div>
-                        }
-                        <div style="font-size:12px;color:var(--ink-500);">
-                            @if (!string.IsNullOrWhiteSpace(r.ExpectedDate)) { <span>Expected by @r.ExpectedDate</span> }
-                            @if (!string.IsNullOrWhiteSpace(r.Budget)) { <span>&nbsp;•&nbsp;Budget: @r.Budget</span> }
-                        </div>
-                        @if (!string.IsNullOrWhiteSpace(r.ImagePath))
-                        {
-                            <div style="margin-top:10px;">
-                                <img src="@r.ImagePath" alt="Requirement attachment" style="max-width:220px;max-height:160px;border-radius:10px;border:1px solid var(--line);object-fit:cover;" />
-                            </div>
-                        }
-                    </div>
-                }
+                var savedRequirements = lead.Requirements.AsEnumerable().Reverse().ToList();
+                <div class="table-wrap" style="overflow-x:auto;">
+                    <table class="data-table" style="min-width:1250px;">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="width:50px;">Sr. No.</th>
+                                <th rowspan="2">Location</th>
+                                <th rowspan="2">Window Description</th>
+                                <th rowspan="2">GLASS</th>
+                                <th rowspan="2">QTY</th>
+                                <th colspan="2">Width (mm)</th>
+                                <th colspan="2">Height (mm)</th>
+                                <th rowspan="2">Area (Sq.Ft) Charge</th>
+                                <th rowspan="2">Amount</th>
+                            </tr>
+                            <tr>
+                                <th>W1 / W2 / W3</th>
+                                <th>Value</th>
+                                <th>H1 / H2 / H3</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var index = 0; index < savedRequirements.Count; index++)
+                            {
+                                var item = savedRequirements[index];
+                                var category = !string.IsNullOrWhiteSpace(item.Category) ? item.Category : (!string.IsNullOrWhiteSpace(item.RequirementType) ? item.RequirementType : "General");
+                                var itemName = !string.IsNullOrWhiteSpace(item.ItemName) ? item.ItemName : item.Item;
+                                var widthValues = RequirementDimensions(("W1", item.W1), ("W2", item.W2), ("W3", item.W3));
+                                var heightValues = RequirementDimensions(("H1", item.H1), ("H2", item.H2), ("H3", item.H3));
+                                var windowDescription = string.Join(" / ", new[] { itemName, item.Types, item.Topology }
+                                    .Where(value => !string.IsNullOrWhiteSpace(value)));
+                                var hasStructuredDetails = !string.IsNullOrWhiteSpace(item.Location) ||
+                                                           widthValues.Length > 0 || heightValues.Length > 0 ||
+                                                           !string.IsNullOrWhiteSpace(item.Types) ||
+                                                           !string.IsNullOrWhiteSpace(item.Topology) ||
+                                                           !string.IsNullOrWhiteSpace(item.Glass);
+                                <tr>
+                                    <td style="text-align:center;">
+                                        <div>@(index + 1)</div>
+                                        <form method="post" asp-controller="Lead" asp-action="DeleteRequirement" onsubmit="return confirm('Delete this requirement?');" style="display:inline;">
+                                            <input type="hidden" name="leadId" value="@lead.LeadId" />
+                                            <input type="hidden" name="reqId" value="@item.Id" />
+                                            <button type="submit" class="icon-btn" style="border:none;background:transparent;color:var(--danger, #ef4444);cursor:pointer;" title="Delete Requirement">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location)</td>
+                                    <td>
+                                        <div class="cell-primary">@(string.IsNullOrWhiteSpace(windowDescription) ? item.Title : windowDescription)</div>
+                                        @if (!string.IsNullOrWhiteSpace(category))
+                                        {
+                                            <div class="hint">@category</div>
+                                        }
+                                        @if (!hasStructuredDetails && !string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="hint">@item.Description</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.Budget) ||
+                                             !string.IsNullOrWhiteSpace(item.ExpectedDate) ||
+                                             !string.IsNullOrWhiteSpace(item.Priority) ||
+                                             !string.IsNullOrWhiteSpace(item.Status))
+                                        {
+                                            <div class="hint">
+                                                @if (!string.IsNullOrWhiteSpace(item.Priority)) { <span>@item.Priority priority</span> }
+                                                @if (!string.IsNullOrWhiteSpace(item.Status)) { <span> · @item.Status</span> }
+                                                @if (!string.IsNullOrWhiteSpace(item.ExpectedDate)) { <span> · Expected @item.ExpectedDate</span> }
+                                                @if (!string.IsNullOrWhiteSpace(item.Budget)) { <span> · Budget @item.Budget</span> }
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.Remarks))
+                                        {
+                                            <div class="hint">@item.Remarks</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.ImagePath))
+                                        {
+                                            if (item.ImagePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <a href="@item.ImagePath" target="_blank" rel="noopener" class="btn btn-outline btn-xs" title="View PDF">
+                                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a href="@item.ImagePath" target="_blank" rel="noopener">
+                                                    <img src="@item.ImagePath" alt="Requirement attachment" loading="lazy"
+                                                         style="max-width:60px;max-height:45px;margin-top:5px;border-radius:4px;border:1px solid var(--line);object-fit:cover;" />
+                                                </a>
+                                            }
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Glass) ? "—" : item.Glass)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Quantity) ? "1" : item.Quantity)</td>
+                                    <td>
+                                        @if (widthValues.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var width in widthValues)
+                                            {
+                                                <div>@width.Label</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (widthValues.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var width in widthValues)
+                                            {
+                                                <div>@width.Value</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (heightValues.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var height in heightValues)
+                                            {
+                                                <div>@height.Label</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (heightValues.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var height in heightValues)
+                                            {
+                                                <div>@height.Value</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.AreaCharge) ? "—" : item.AreaCharge)</td>
+                                    <td class="amount-cell">@RequirementCurrency(item.Amount)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
         </div>
 
@@ -420,148 +566,15 @@
             }
         </div>
 
-        <!-- ============ FINANCE TAB — Estimation | Quotation | Proposal sub-tabs ============ -->
+        <!-- ============ FINANCE TAB — Quotation | Proposal sub-tabs ============ -->
         <div class="tab-panel" id="tab-finance">
             <div class="fin-subtabs" role="tablist">
-                <button type="button" class="fin-subtab-btn" data-subtab="estimation" onclick="switchFinanceSubTab('estimation')">
-                    <i class="bi bi-calculator"></i> Estimation
-                </button>
                 <button type="button" class="fin-subtab-btn" data-subtab="quotation" onclick="switchFinanceSubTab('quotation')">
                     <i class="bi bi-file-earmark-text"></i> Quotation
                 </button>
                 <button type="button" class="fin-subtab-btn" data-subtab="proposal" onclick="switchFinanceSubTab('proposal')">
                     <i class="bi bi-file-earmark-richtext"></i> Proposal
                 </button>
-            </div>
-
-            <!-- ===== ESTIMATION SUB-TAB ===== -->
-            <div class="fin-subpanel" id="finsub-estimation">
-                <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
-                    <span>Estimations</span>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="newFinanceForm('estimation')">
-                        <i class="bi bi-plus-lg"></i> New Estimation
-                    </button>
-                </div>
-
-                @if (!string.IsNullOrEmpty(estimationError))
-                {
-                    <div class="form-error-banner"><i class="bi bi-exclamation-triangle-fill"></i> @estimationError</div>
-                }
-
-                <div id="estimationForm" class="fin-add-form" style="display:none;">
-                    <div class="fin-form-title" style="display:flex;align-items:center;justify-content:space-between;">
-                        <span id="estimationFormTitle">New Estimation</span>
-                        <span class="fin-number-chip" id="estimationNumberDisplay">Auto-generated on save</span>
-                    </div>
-                    <form method="post" asp-controller="Lead" asp-action="SaveEstimation" enctype="multipart/form-data">
-                        <input type="hidden" name="leadId" value="@lead.LeadId" />
-                        <input type="hidden" name="number" id="estimationEditingNumber" value="" />
-                        <div class="form-grid">
-                            <div class="form-field full">
-                                <label>Attach PDF</label>
-                                <div class="fin-attach-row">
-                                    <label class="btn btn-outline btn-sm fin-attach-btn" for="estimationAttachment">
-                                        <i class="bi bi-paperclip"></i> Attach PDF
-                                    </label>
-                                    <input type="file" name="attachment" id="estimationAttachment"
-                                           accept=".pdf,application/pdf"
-                                           style="display:none;" onchange="previewFinanceAttachment(this,'estimation')" />
-                                    <span id="estimationAttachmentFileName" class="fin-attach-filename">No file chosen</span>
-                                </div>
-                                <div id="estimationCurrentAttachment" class="fin-attach-current" style="display:none;">
-                                    <i class="bi bi-paperclip"></i> Current: <a href="#" id="estimationCurrentAttachmentLink" target="_blank" rel="noopener"></a>
-                                    <span class="hint">(uploading a new file will replace this)</span>
-                                </div>
-                                <div class="hint" style="margin-top:4px;">PDF format up to 10 MB.</div>
-                            </div>
-                            <div class="form-field full">
-                                <label>Description / Notes</label>
-                                <textarea name="notes" id="estimationNotes" placeholder="Enter additional information or notes..."></textarea>
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-outline" onclick="cancelFinanceForm('estimation')">Cancel</button>
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Estimation</button>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="divider-line"></div>
-                <div class="section-title">Saved Estimations</div>
-                @if (lead.Estimations.Count == 0)
-                {
-                    <div class="empty-state"><i class="bi bi-calculator"></i><p>No estimations created yet.</p></div>
-                }
-                else
-                {
-                    @foreach (var e in lead.Estimations.AsEnumerable().Reverse())
-                    {
-                        <div class="fin-record-card">
-                            <div class="fin-record-head">
-                                <div class="fin-record-main">
-                                    <span class="fin-record-num">@e.Number</span>
-                                    <span class="fin-record-sub">@e.Date</span>
-                                    <span class="badge-status st-new">@e.Status</span>
-                                    <span class="fin-record-amt">₹@e.Total</span>
-                                </div>
-                                <div class="fin-record-actions">
-                                    <button type="button" class="fin-icon-btn" title="View" onclick="toggleFinanceDetail('est-detail-@e.Number')"><i class="bi bi-eye"></i></button>
-                                    <button type="button" class="fin-icon-btn" title="Edit" onclick="editFinanceRecord('estimation','@e.Number')"><i class="bi bi-pencil"></i></button>
-                                    <form method="post" asp-controller="Lead" asp-action="DeleteEstimation" onsubmit="return confirm('Delete estimation @e.Number?')" style="display:inline;">
-                                        <input type="hidden" name="leadId" value="@lead.LeadId" />
-                                        <input type="hidden" name="number" value="@e.Number" />
-                                        <button type="submit" class="fin-icon-btn danger" title="Delete"><i class="bi bi-trash"></i></button>
-                                    </form>
-                                </div>
-                            </div>
-                            <div class="fin-record-detail" id="est-detail-@e.Number">
-                                <div class="info-grid">
-                                    <div class="info-item"><div class="lbl">PROJECT / REQUIREMENT</div><div class="val muted">@e.ProjectRequirement</div></div>
-                                    <div class="info-item"><div class="lbl">VALID UNTIL</div><div class="val muted">@e.ValidUntil</div></div>
-                                    <div class="info-item"><div class="lbl">DISCOUNT / TAX</div><div class="val muted">@e.Discount / @e.Tax</div></div>
-                                </div>
-                                @if (e.Items.Count > 0)
-                                {
-                                    <div class="table-wrap" style="margin-top:12px;">
-                                        <table class="data-table">
-                                            <thead><tr><th>Item / Service</th><th>Quantity</th><th>Rate</th><th>Amount</th></tr></thead>
-                                            <tbody>
-                                                @foreach (var it in e.Items)
-                                                {
-                                                    <tr><td>@it.ItemName</td><td>@it.Quantity</td><td>@it.Rate</td><td>@it.Amount</td></tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(e.TermsConditions))
-                                {
-                                    <div style="margin-top:10px;"><div class="lbl" style="font-size:11.5px;color:var(--ink-500);font-weight:600;">TERMS &amp; CONDITIONS</div><div style="font-size:13px;color:var(--ink-700);">@e.TermsConditions</div></div>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(e.Notes))
-                                {
-                                    <div style="margin-top:10px;"><div class="lbl" style="font-size:11.5px;color:var(--ink-500);font-weight:600;">NOTES</div><div style="font-size:13px;color:var(--ink-700);">@e.Notes</div></div>
-                                }
-                                <div style="margin-top:10px;">
-                                    <div class="lbl" style="font-size:11.5px;color:var(--ink-500);font-weight:600;">ATTACHMENTS</div>
-                                    @if (!string.IsNullOrWhiteSpace(e.AttachmentPath))
-                                    {
-                                        <div class="fin-attach-current" style="margin-top:4px;">
-                                            <i class="bi bi-paperclip"></i>
-                                            <a href="@e.AttachmentPath" target="_blank" rel="noopener">@e.AttachmentFileName</a>
-                                            <a href="@e.AttachmentPath" download class="btn btn-soft btn-sm" style="margin-left:8px;"><i class="bi bi-download"></i> Download</a>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div style="font-size:13px;color:var(--ink-500);margin-top:4px;">No attachment</div>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                        <script type="application/json" id="estimation-json-@e.Number">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(e))</script>
-                    }
-                }
             </div>
 
             <!-- ===== QUOTATION SUB-TAB ===== -->
@@ -868,6 +881,7 @@
                                 <th>Salesperson</th>
                                 <th>Conversation</th>
                                 <th>Result / Outcome</th>
+                                <th>Photos</th>
                                 <th>Remarks</th>
                             </tr>
                         </thead>
@@ -883,6 +897,14 @@
                                         <td>@(string.IsNullOrWhiteSpace(v.Employee) ? (string.IsNullOrWhiteSpace(lead.AssignedTo) ? "—" : lead.AssignedTo) : v.Employee)</td>
                                         <td style="max-width:260px;">@(string.IsNullOrWhiteSpace(v.Conversation) ? "—" : v.Conversation)</td>
                                         <td>@Html.Raw(VisitOutcomeBadge(v.Outcome))</td>
+                                        <td>
+                                            @foreach (var imagePath in VisitImagePaths(v.ImagePathsJson))
+                                            {
+                                                <a href="@imagePath" target="_blank" rel="noopener">
+                                                    <img src="@imagePath" alt="Visit photo" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px;margin-right:4px;" />
+                                                </a>
+                                            }
+                                        </td>
                                         <td style="max-width:220px;">@(string.IsNullOrWhiteSpace(v.Remarks) ? "—" : v.Remarks)</td>
                                     </tr>
                                 }
@@ -948,7 +970,7 @@
                     <thead>
                         <tr>
                             <th>Visit Date</th><th>Visit Time</th><th>Visit Location</th><th>Salesperson</th>
-                            <th>Conversation</th><th>Result / Outcome</th><th>Remarks</th>
+                            <th>Conversation</th><th>Result / Outcome</th><th>Photos</th><th>Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -971,6 +993,14 @@
                                         };
                                     }
                                     <span class="badge-status @outCls">@v.Outcome</span>
+                                </td>
+                                <td>
+                                    @foreach (var imagePath in VisitImagePaths(v.ImagePathsJson))
+                                    {
+                                        <a href="@imagePath" target="_blank" rel="noopener">
+                                            <img src="@imagePath" alt="Visit photo" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px;margin-right:4px;" />
+                                        </a>
+                                    }
                                 </td>
                                 <td style="max-width:220px;">@v.Remarks</td>
                             </tr>
@@ -1104,7 +1134,7 @@
                 <h3 id="addVisitModalTitle"><i class="bi bi-geo-alt-fill" style="color:var(--brand-600);margin-right:6px;"></i>Add Visit</h3>
                 <p id="addVisitModalSubtitle">Record in-person visit for @lead.LeadName (@lead.LeadId)</p>
             </div>
-            <button class="modal-close" type="button" onclick="closeModal('addVisitModal')" aria-label="Close modal">&times;</button>
+            <button class="modal-close" type="button" onclick="closeAddVisitModal()" aria-label="Close modal">&times;</button>
         </div>
         <div class="modal-box-body">
             <div id="addVisitErrorBanner" class="form-error-banner" style="display:none;margin-bottom:14px;"></div>
@@ -1123,6 +1153,7 @@
             </div>
 
             <form id="addVisitForm" onsubmit="handleSaveVisit(event)">
+                @Html.AntiForgeryToken()
                 <input type="hidden" id="addVisitLeadId" value="@lead.LeadId" />
                 <input type="hidden" id="addVisitDefaultLoc" value="@(lead.Location ?? "")" />
 
@@ -1173,10 +1204,24 @@
                         <label for="addVisitRemarks">Remarks</label>
                         <textarea id="addVisitRemarks" name="remarks" rows="2" placeholder="Enter follow-up requirements, client requests or observations..."></textarea>
                     </div>
+                    <div class="form-field full">
+                        <label>Visit Photos</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('addVisitCameraInput').click()">
+                                <i class="bi bi-camera-fill"></i> Take Photo
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('addVisitUploadInput').click()">
+                                <i class="bi bi-upload"></i> Upload Photos
+                            </button>
+                        </div>
+                        <input type="file" id="addVisitCameraInput" accept="image/jpeg,image/png,image/gif,image/webp" capture="environment" style="display:none;" onchange="addVisitImages(this)" />
+                        <input type="file" id="addVisitUploadInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;" onchange="addVisitImages(this)" />
+                        <div id="addVisitImagePreview" aria-live="polite" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+                    </div>
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeModal('addVisitModal')">Cancel</button>
+                    <button type="button" class="btn btn-outline" onclick="closeAddVisitModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="btnSaveVisit">
                         <i class="bi bi-check-lg"></i> <span id="saveVisitBtnLabel">Save Visit</span>
                     </button>
@@ -1618,9 +1663,112 @@
         window.openAddFollowUpModal = openAddFollowUpModal;
         window.handleSaveFollowUp = handleSaveFollowUp;
 
+        var selectedVisitImages = [];
+
+        function clearSelectedVisitImages() {
+            selectedVisitImages.forEach(function (item) {
+                URL.revokeObjectURL(item.previewUrl);
+            });
+            selectedVisitImages = [];
+            renderVisitImagePreviews();
+        }
+
+        function renderVisitImagePreviews() {
+            var container = document.getElementById('addVisitImagePreview');
+            if (!container) return;
+
+            container.innerHTML = '';
+            selectedVisitImages.forEach(function (item, index) {
+                var tile = document.createElement('div');
+                tile.style.cssText = 'width:92px;position:relative;text-align:center;';
+
+                var image = document.createElement('img');
+                image.src = item.previewUrl;
+                image.alt = item.file.name;
+                image.style.cssText = 'width:88px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);';
+                tile.appendChild(image);
+
+                var removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'btn btn-outline btn-sm';
+                removeButton.textContent = 'Remove';
+                removeButton.style.cssText = 'margin-top:4px;padding:2px 6px;font-size:11px;';
+                removeButton.setAttribute('aria-label', 'Remove ' + item.file.name);
+                removeButton.addEventListener('click', function () {
+                    URL.revokeObjectURL(item.previewUrl);
+                    selectedVisitImages.splice(index, 1);
+                    renderVisitImagePreviews();
+                });
+                tile.appendChild(removeButton);
+                container.appendChild(tile);
+            });
+        }
+
+        function addVisitImages(input) {
+            var errorBanner = document.getElementById('addVisitErrorBanner');
+            var validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+            var maxImageSize = 10 * 1024 * 1024;
+            var maxTotalSize = 25 * 1024 * 1024;
+            var selectionError = '';
+
+            Array.from(input.files || []).forEach(function (file) {
+                var extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+                if (selectedVisitImages.some(function (item) {
+                    return item.file.name === file.name && item.file.size === file.size && item.file.lastModified === file.lastModified;
+                })) {
+                    return;
+                }
+
+                var currentTotal = selectedVisitImages.reduce(function (total, item) {
+                    return total + item.file.size;
+                }, 0);
+
+                if (!validExtensions.includes(extension)) {
+                    selectionError = 'Unsupported photo type. Use JPG, PNG, GIF or WEBP.';
+                    return;
+                }
+                if (file.size > maxImageSize) {
+                    selectionError = 'Each photo must be 10 MB or smaller.';
+                    return;
+                }
+                if (selectedVisitImages.length >= 10 || currentTotal + file.size > maxTotalSize) {
+                    selectionError = 'You can attach up to 10 photos with a combined size of 25 MB.';
+                    return;
+                }
+
+                selectedVisitImages.push({ file: file, previewUrl: URL.createObjectURL(file) });
+            });
+
+            input.value = '';
+            if (errorBanner) {
+                errorBanner.textContent = selectionError;
+                errorBanner.style.display = selectionError ? 'flex' : 'none';
+            }
+            renderVisitImagePreviews();
+        }
+
+        function getVisitImagesHtml(imagePathsJson) {
+            var paths = [];
+            try {
+                paths = JSON.parse(imagePathsJson || '[]');
+            } catch (error) {
+                console.error('Could not read saved visit photos:', error);
+                return '—';
+            }
+
+            if (!Array.isArray(paths) || paths.length === 0) return '—';
+            return paths.map(function (path) {
+                var safePath = escapeHtml(path);
+                return '<a href="' + safePath + '" target="_blank" rel="noopener">' +
+                    '<img src="' + safePath + '" alt="Visit photo" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px;margin-right:4px;" />' +
+                    '</a>';
+            }).join('');
+        }
+
         function openAddVisitModal() {
             var form = document.getElementById('addVisitForm');
             if (form) form.reset();
+            clearSelectedVisitImages();
 
             var dateInput = document.getElementById('addVisitDate');
             if (dateInput) dateInput.value = formatCurrentDate();
@@ -1649,6 +1797,11 @@
             if (btnLabel) btnLabel.textContent = 'Save Visit';
 
             openModal('addVisitModal');
+        }
+
+        function closeAddVisitModal() {
+            closeModal('addVisitModal');
+            clearSelectedVisitImages();
         }
 
         function getVisitOutcomeBadgeHtml(outcome) {
@@ -1686,24 +1839,27 @@
             if (btn) btn.disabled = true;
             if (btnLabel) btnLabel.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
 
-            var payload = {
-                VisitDate: visitDate,
-                VisitTime: visitTime,
-                VisitLocation: visitLocation,
-                Employee: employee,
-                Outcome: outcome,
-                Conversation: conversation,
-                Remarks: remarks
-            };
+            var formData = new FormData();
+            formData.append('VisitDate', visitDate);
+            formData.append('VisitTime', visitTime);
+            formData.append('VisitLocation', visitLocation);
+            formData.append('Employee', employee);
+            formData.append('Outcome', outcome);
+            formData.append('Conversation', conversation);
+            formData.append('Remarks', remarks);
+            var verificationToken = document.querySelector('#addVisitForm input[name="__RequestVerificationToken"]');
+            if (verificationToken) formData.append('__RequestVerificationToken', verificationToken.value);
+            selectedVisitImages.forEach(function (item) {
+                formData.append('images', item.file, item.file.name);
+            });
 
             try {
-                var response = await fetch('/api/leads/' + encodeURIComponent(leadId) + '/visits', {
+                var response = await fetch('/api/leads/' + encodeURIComponent(leadId) + '/visits/upload', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify(payload)
+                    body: formData
                 });
 
                 if (!response.ok) {
@@ -1722,9 +1878,11 @@
                 var data = await response.json();
 
                 // Close modal
-                closeModal('addVisitModal');
+                closeAddVisitModal();
 
                 var badgeHtml = getVisitOutcomeBadgeHtml(outcome);
+                var savedVisit = data.visit || data.Visit || {};
+                var visitImagesHtml = getVisitImagesHtml(savedVisit.imagePathsJson || savedVisit.ImagePathsJson);
 
                 // Update latest summary box in Visit tab
                 var latestDateEl = document.getElementById('latestVisitDate');
@@ -1764,6 +1922,7 @@
                         '<td>' + escapeHtml(employee || '—') + '</td>' +
                         '<td style="max-width:260px;">' + escapeHtml(conversation || '—') + '</td>' +
                         '<td>' + badgeHtml + '</td>' +
+                        '<td>' + visitImagesHtml + '</td>' +
                         '<td style="max-width:220px;">' + escapeHtml(remarks || '—') + '</td>';
                     tbody.insertBefore(tr, tbody.firstChild);
                 }
@@ -1839,6 +1998,12 @@
             _ => "st-proposalsent"
         };
         return $"<span class='badge-status {cls}'>{s}</span>";
+    }
+
+    List<string> VisitImagePaths(string? imagePathsJson)
+    {
+        if (string.IsNullOrWhiteSpace(imagePathsJson)) return new List<string>();
+        return System.Text.Json.JsonSerializer.Deserialize<List<string>>(imagePathsJson) ?? new List<string>();
     }
 
     string Initials(string? name)

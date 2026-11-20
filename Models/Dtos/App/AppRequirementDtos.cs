@@ -29,7 +29,9 @@ public class FlexibleStringConverter : JsonConverter<string?>
 public class AppRequirementItemDto
 {
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Category { get; set; }
+    public int? CategoryId { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Item { get; set; }
+    public int? ItemId { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Location { get; set; }
 
     [JsonConverter(typeof(FlexibleStringConverter))] public string? H1 { get; set; }
@@ -39,10 +41,16 @@ public class AppRequirementItemDto
     [JsonConverter(typeof(FlexibleStringConverter))] public string? W1 { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? W2 { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? W3 { get; set; }
+    [JsonConverter(typeof(FlexibleStringConverter))] public string? Quantity { get; set; }
+    [JsonConverter(typeof(FlexibleStringConverter))] public string? AreaCharge { get; set; }
+    [JsonConverter(typeof(FlexibleStringConverter))] public string? Amount { get; set; }
 
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Types { get; set; }
+    public int? TypeId { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Topology { get; set; }
+    public int? TopologyId { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Glass { get; set; }
+    public int? GlassId { get; set; }
 
     /// <summary>Photo as base64, with or without "data:image/jpeg;base64," prefix.</summary>
     public string? ImageBase64 { get; set; }
@@ -62,6 +70,8 @@ public class AppRequirementInputDto
     [JsonConverter(typeof(FlexibleStringConverter))] public string? RequirementType { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? ItemName { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Quantity { get; set; }
+    [JsonConverter(typeof(FlexibleStringConverter))] public string? AreaCharge { get; set; }
+    [JsonConverter(typeof(FlexibleStringConverter))] public string? Amount { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Details { get; set; }
     [JsonConverter(typeof(FlexibleStringConverter))] public string? Remarks { get; set; }
 
@@ -83,7 +93,9 @@ public class AppRequirementResponseDto
 
     // Same params as web panel
     public string? Category { get; set; }
+    public int? CategoryId { get; set; }
     public string? Item { get; set; }
+    public int? ItemId { get; set; }
     public string? Location { get; set; }
     public string? H1 { get; set; }
     public string? H2 { get; set; }
@@ -92,8 +104,13 @@ public class AppRequirementResponseDto
     public string? W2 { get; set; }
     public string? W3 { get; set; }
     public string? Types { get; set; }
+    public int? TypeId { get; set; }
     public string? Topology { get; set; }
+    public int? TopologyId { get; set; }
     public string? Glass { get; set; }
+    public int? GlassId { get; set; }
+    public string? AreaCharge { get; set; }
+    public string? Amount { get; set; }
 
     // Legacy fields
     public string? RequirementType { get; set; }
@@ -127,7 +144,9 @@ public class AppRequirementResponseDto
             ImagePath = entity.ImagePath,
 
             Category = !string.IsNullOrWhiteSpace(entity.Category) ? entity.Category : entity.RequirementType,
+            CategoryId = entity.CategoryId,
             Item = !string.IsNullOrWhiteSpace(entity.Item) ? entity.Item : entity.ItemName,
+            ItemId = entity.ItemId,
             Location = entity.Location,
             H1 = entity.H1,
             H2 = entity.H2,
@@ -136,8 +155,13 @@ public class AppRequirementResponseDto
             W2 = entity.W2,
             W3 = entity.W3,
             Types = entity.Types,
+            TypeId = entity.TypeId,
             Topology = entity.Topology,
+            TopologyId = entity.TopologyId,
             Glass = entity.Glass,
+            GlassId = entity.GlassId,
+            AreaCharge = entity.AreaCharge,
+            Amount = entity.Amount,
 
             RequirementType = entity.RequirementType,
             ItemName = entity.ItemName,

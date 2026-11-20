@@ -1,0 +1,72 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-admin-bearer-token
+
+### Get active categories
+GET {{baseUrl}}/api/masters?type=Category
+Authorization: Bearer {{token}}
+
+### Get active items for Window
+GET {{baseUrl}}/api/masters?type=Item&parentId=1
+Authorization: Bearer {{token}}
+
+### Get active types for Sliding Window
+GET {{baseUrl}}/api/masters?type=Type&parentId=101
+Authorization: Bearer {{token}}
+
+### Get active topology options for Sliding Window
+GET {{baseUrl}}/api/masters?type=Topology&parentId=101
+Authorization: Bearer {{token}}
+
+### Get active glass options
+GET {{baseUrl}}/api/masters?type=Glass
+Authorization: Bearer {{token}}
+
+### List all options, including inactive (Admin only)
+GET {{baseUrl}}/api/masters?includeInactive=true
+Authorization: Bearer {{token}}
+
+### Get one option
+GET {{baseUrl}}/api/masters/1
+Authorization: Bearer {{token}}
+
+### Missing option returns 404
+GET {{baseUrl}}/api/masters/999999
+Authorization: Bearer {{token}}
+
+### Create an item under Window (Admin only)
+POST {{baseUrl}}/api/masters
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "masterType": "Item",
+  "name": "Fixed Window",
+  "parentId": 1
+}
+
+### Create an item with type, topology, and common glass tags (Admin only)
+POST {{baseUrl}}/api/masters/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "itemName": "Bay Window",
+  "types": ["2-Track", "3-Track"],
+  "topologies": ["2 Panel", "Corner"],
+  "glass": ["Low-E"]
+}
+
+### Rename a master option (Admin only)
+PUT {{baseUrl}}/api/masters/101
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Sliding Window"
+}
+
+### Deactivate a master option (Admin only)
+PATCH {{baseUrl}}/api/masters/101/deactivate
+Authorization: Bearer {{token}}
+

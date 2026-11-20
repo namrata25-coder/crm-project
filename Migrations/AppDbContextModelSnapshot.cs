@@ -63,6 +63,41 @@ namespace CrmLeadManagement.Migrations
                     b.ToTable("AccessTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CrmLeadManagement.Models.AuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PerformedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetUserEmail")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("TargetUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("CrmLeadManagement.Models.EstimationEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -295,6 +330,753 @@ namespace CrmLeadManagement.Migrations
                     b.ToTable("StatusOptions");
                 });
 
+            modelBuilder.Entity("CrmLeadManagement.Models.MasterData", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MasterType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("MasterType", "ParentId", "IsActive");
+
+                    b.ToTable("MasterData", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            IsActive = true,
+                            MasterType = "Category",
+                            Name = "Window"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            IsActive = true,
+                            MasterType = "Category",
+                            Name = "Door"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            IsActive = true,
+                            MasterType = "Category",
+                            Name = "Partition"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            IsActive = true,
+                            MasterType = "Category",
+                            Name = "Facade"
+                        },
+                        new
+                        {
+                            Id = 101,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Sliding Window",
+                            ParentId = 1
+                        },
+                        new
+                        {
+                            Id = 102,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Casement Window",
+                            ParentId = 1
+                        },
+                        new
+                        {
+                            Id = 107,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Fixed Window",
+                            ParentId = 1
+                        },
+                        new
+                        {
+                            Id = 103,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Sliding Door",
+                            ParentId = 2
+                        },
+                        new
+                        {
+                            Id = 104,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Hinged Door",
+                            ParentId = 2
+                        },
+                        new
+                        {
+                            Id = 108,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Folding Door",
+                            ParentId = 2
+                        },
+                        new
+                        {
+                            Id = 105,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Glass Partition",
+                            ParentId = 3
+                        },
+                        new
+                        {
+                            Id = 106,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Aluminium Partition",
+                            ParentId = 3
+                        },
+                        new
+                        {
+                            Id = 109,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Curtain Wall",
+                            ParentId = 4
+                        },
+                        new
+                        {
+                            Id = 110,
+                            IsActive = true,
+                            MasterType = "Item",
+                            Name = "Structural Glazing",
+                            ParentId = 4
+                        },
+                        new
+                        {
+                            Id = 201,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 101
+                        },
+                        new
+                        {
+                            Id = 202,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 101
+                        },
+                        new
+                        {
+                            Id = 203,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 204,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 205,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 206,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 207,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 208,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 209,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 210,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 211,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 104
+                        },
+                        new
+                        {
+                            Id = 212,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 104
+                        },
+                        new
+                        {
+                            Id = 213,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 214,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 215,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 216,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 217,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 218,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 219,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 220,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 221,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 222,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 223,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 224,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 225,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 226,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 227,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 228,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 229,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 230,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 231,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 232,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 233,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "2-Track",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 234,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "3-Track",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 235,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Fixed",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 236,
+                            IsActive = true,
+                            MasterType = "Type",
+                            Name = "Openable",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 301,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 101
+                        },
+                        new
+                        {
+                            Id = 302,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 101
+                        },
+                        new
+                        {
+                            Id = 303,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 304,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 305,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 306,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 102
+                        },
+                        new
+                        {
+                            Id = 307,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 308,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 309,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 310,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 103
+                        },
+                        new
+                        {
+                            Id = 311,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 104
+                        },
+                        new
+                        {
+                            Id = 312,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 104
+                        },
+                        new
+                        {
+                            Id = 313,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 314,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 315,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 316,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 105
+                        },
+                        new
+                        {
+                            Id = 317,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 318,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 319,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 320,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 106
+                        },
+                        new
+                        {
+                            Id = 321,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 322,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 323,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 324,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 107
+                        },
+                        new
+                        {
+                            Id = 325,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 326,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 327,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 328,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 108
+                        },
+                        new
+                        {
+                            Id = 329,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 330,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 331,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 332,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 109
+                        },
+                        new
+                        {
+                            Id = 333,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "2 Panel",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 334,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "3 Panel",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 335,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "4 Panel",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 336,
+                            IsActive = true,
+                            MasterType = "Topology",
+                            Name = "Corner",
+                            ParentId = 110
+                        },
+                        new
+                        {
+                            Id = 401,
+                            IsActive = true,
+                            MasterType = "Glass",
+                            Name = "Clear"
+                        },
+                        new
+                        {
+                            Id = 402,
+                            IsActive = true,
+                            MasterType = "Glass",
+                            Name = "Tinted"
+                        },
+                        new
+                        {
+                            Id = 403,
+                            IsActive = true,
+                            MasterType = "Glass",
+                            Name = "Toughened"
+                        },
+                        new
+                        {
+                            Id = 404,
+                            IsActive = true,
+                            MasterType = "Glass",
+                            Name = "Frosted"
+                        });
+                });
+
             modelBuilder.Entity("CrmLeadManagement.Models.ProposalEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -522,13 +1304,25 @@ namespace CrmLeadManagement.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
                     b.Property<int>("FailedLoginCount")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsAuthorizedUser")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastPasswordChangeAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LockoutUntil")
@@ -536,6 +1330,9 @@ namespace CrmLeadManagement.Migrations
 
                     b.Property<string>("ModulePermissions")
                         .HasColumnType("text");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .HasColumnType("text");
@@ -547,6 +1344,9 @@ namespace CrmLeadManagement.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Status")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -675,6 +1475,9 @@ namespace CrmLeadManagement.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("ClientCompany")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientId")
                         .HasColumnType("text");
 
                     b.Property<string>("ClientName")
@@ -1309,8 +2112,20 @@ namespace CrmLeadManagement.Migrations
 
                             NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
+                            b1.Property<string>("Amount")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("AreaCharge")
+                                .HasColumnType("text");
+
                             b1.Property<string>("Budget")
                                 .HasColumnType("text");
+
+                            b1.Property<string>("Category")
+                                .HasColumnType("text");
+
+                            b1.Property<int?>("CategoryId")
+                                .HasColumnType("integer");
 
                             b1.Property<string>("Description")
                                 .HasColumnType("text");
@@ -1321,10 +2136,34 @@ namespace CrmLeadManagement.Migrations
                             b1.Property<string>("ExpectedDate")
                                 .HasColumnType("text");
 
+                            b1.Property<string>("Glass")
+                                .HasColumnType("text");
+
+                            b1.Property<int?>("GlassId")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("H1")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("H2")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("H3")
+                                .HasColumnType("text");
+
                             b1.Property<string>("ImagePath")
                                 .HasColumnType("text");
 
+                            b1.Property<string>("Item")
+                                .HasColumnType("text");
+
+                            b1.Property<int?>("ItemId")
+                                .HasColumnType("integer");
+
                             b1.Property<string>("ItemName")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("Location")
                                 .HasColumnType("text");
 
                             b1.Property<string>("Priority")
@@ -1345,12 +2184,68 @@ namespace CrmLeadManagement.Migrations
                             b1.Property<string>("Title")
                                 .HasColumnType("text");
 
+                            b1.Property<string>("Topology")
+                                .HasColumnType("text");
+
+                            b1.Property<int?>("TopologyId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("TypeId")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("Types")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("W1")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("W2")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("W3")
+                                .HasColumnType("text");
+
                             b1.HasKey("LeadId_FK", "Id");
+
+                            b1.HasIndex("CategoryId");
+
+                            b1.HasIndex("GlassId");
+
+                            b1.HasIndex("ItemId");
+
+                            b1.HasIndex("TopologyId");
+
+                            b1.HasIndex("TypeId");
 
                             b1.ToTable("RequirementEntry");
 
+                            b1.HasOne("CrmLeadManagement.Models.MasterData", null)
+                                .WithMany()
+                                .HasForeignKey("CategoryId")
+                                .OnDelete(DeleteBehavior.NoAction);
+
+                            b1.HasOne("CrmLeadManagement.Models.MasterData", null)
+                                .WithMany()
+                                .HasForeignKey("GlassId")
+                                .OnDelete(DeleteBehavior.NoAction);
+
+                            b1.HasOne("CrmLeadManagement.Models.MasterData", null)
+                                .WithMany()
+                                .HasForeignKey("ItemId")
+                                .OnDelete(DeleteBehavior.NoAction);
+
                             b1.WithOwner()
                                 .HasForeignKey("LeadId_FK");
+
+                            b1.HasOne("CrmLeadManagement.Models.MasterData", null)
+                                .WithMany()
+                                .HasForeignKey("TopologyId")
+                                .OnDelete(DeleteBehavior.NoAction);
+
+                            b1.HasOne("CrmLeadManagement.Models.MasterData", null)
+                                .WithMany()
+                                .HasForeignKey("TypeId")
+                                .OnDelete(DeleteBehavior.NoAction);
                         });
 
                     b.OwnsMany("CrmLeadManagement.Models.VisitEntry", "Visits", b1 =>
@@ -1368,6 +2263,9 @@ namespace CrmLeadManagement.Migrations
                                 .HasColumnType("text");
 
                             b1.Property<string>("Employee")
+                                .HasColumnType("text");
+
+                            b1.Property<string>("ImagePathsJson")
                                 .HasColumnType("text");
 
                             b1.Property<string>("Outcome")
@@ -1402,6 +2300,16 @@ namespace CrmLeadManagement.Migrations
                     b.Navigation("Requirements");
 
                     b.Navigation("Visits");
+                });
+
+            modelBuilder.Entity("CrmLeadManagement.Models.MasterData", b =>
+                {
+                    b.HasOne("CrmLeadManagement.Models.MasterData", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("CrmLeadManagement.Models.ProposalEntry", b =>
@@ -1559,6 +2467,11 @@ namespace CrmLeadManagement.Migrations
                     b.Navigation("Proposals");
 
                     b.Navigation("Quotations");
+                });
+
+            modelBuilder.Entity("CrmLeadManagement.Models.MasterData", b =>
+                {
+                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("CrmLeadManagement.Models.QuotationEntry", b =>

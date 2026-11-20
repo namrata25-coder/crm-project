@@ -2,6 +2,11 @@
 @{
     ViewData["Title"] = "Admin Security & Operations Dashboard";
     ViewData["ActivePage"] = "AdminDashboard";
+    var indiaTimeZone = TimeZoneInfo.CreateCustomTimeZone(
+        "India Standard Time",
+        TimeSpan.FromMinutes(330),
+        "India Standard Time",
+        "India Standard Time");
 }
 
 <div class="page-content" style="padding: 24px 32px;">
@@ -151,7 +156,7 @@
                 <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
                     <thead>
                         <tr style="border-bottom:1px solid var(--line, #e2e8f0); background:var(--canvas, #f8fafc); color:var(--ink-600, #475569); font-weight:600;">
-                            <th style="padding:10px 14px;">Timestamp (UTC)</th>
+                            <th style="padding:10px 14px;">Timestamp (IST)</th>
                             <th style="padding:10px 14px;">Action</th>
                             <th style="padding:10px 14px;">Performed By</th>
                             <th style="padding:10px 14px;">Target User</th>
@@ -164,9 +169,11 @@
                         {
                             var isSecurityAlert = log.Action.Contains("Reject", StringComparison.OrdinalIgnoreCase) || 
                                                   log.Action.Contains("Fail", StringComparison.OrdinalIgnoreCase);
+                            var timestampUtc = DateTime.SpecifyKind(log.Timestamp, DateTimeKind.Utc);
+                            var timestampIst = TimeZoneInfo.ConvertTimeFromUtc(timestampUtc, indiaTimeZone);
                             <tr style="border-bottom:1px solid var(--line, #f1f5f9); transition:background 0.15s ease;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
                                 <td style="padding:12px 14px; color:var(--ink-500, #64748b); white-space:nowrap;">
-                                    @log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")
+                                    @timestampIst.ToString("yyyy-MM-dd HH:mm:ss")
                                 </td>
                                 <td style="padding:12px 14px; font-weight:600;">
                                     @if (isSecurityAlert)

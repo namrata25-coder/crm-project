@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CrmLeadManagement.Models;
 using CrmLeadManagement.Security;
+using CrmLeadManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -83,7 +84,7 @@ public class LeadController : Controller
     }
 
     // GET /Lead/Details?id=LD-1001&tab=call
-    // subtab is only relevant when tab=finance (estimation | quotation | proposal)
+    // subtab is only relevant when tab=finance (quotation | proposal)
     public IActionResult Details(string id, string? tab, string? subtab)
     {
         var authEmail = User.FindFirst(ClaimTypes.Email)?.Value;
@@ -106,7 +107,30 @@ public class LeadController : Controller
         ViewData["Title"] = "Lead Details";
         ViewData["ActivePage"] = "LeadList";
         ViewData["ActiveTab"] = string.IsNullOrWhiteSpace(tab) ? "call" : tab;
-        ViewData["ActiveFinanceSubTab"] = string.IsNullOrWhiteSpace(subtab) ? "estimation" : subtab;
+        ViewData["ActiveFinanceSubTab"] = string.Equals(subtab, "proposal", StringComparison.OrdinalIgnoreCase)
+            ? "proposal"
+            : "quotation";
+        return View(lead);
+    }
+
+    public IActionResult RequirementDocument(string id)
+    {
+        var authEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+        var currentUser = _db.Users.FirstOrDefault(u => u.Email == authEmail);
+        bool isAdmin = User.IsInRole("Admin") ||
+                       (currentUser != null && string.Equals(currentUser.Role, "Admin", StringComparison.OrdinalIgnoreCase));
+
+        if (!isAdmin && !PermissionChecker.HasModulePermission(_db, currentUser, "Lead List", "View") &&
+            !PermissionChecker.HasModulePermission(_db, currentUser, "Assigned Leads", "View"))
+        {
+            return Forbid();
+        }
+
+        var lead = LeadStore.GetById(id);
+        if (lead is null)
+            return NotFound();
+
+        ViewData["Title"] = "Requirement Document";
         return View(lead);
     }
 
@@ -127,6 +151,12 @@ public class LeadController : Controller
             !PermissionChecker.HasModulePermission(_db, currentUser, "Assigned Leads", action))
         {
             TempData["ErrorMessage"] = $"Access Denied: You do not have permission to {action.ToLower()} leads.";
+            return RedirectToReturnUrl(returnUrl, "List");
+        }
+
+        if (string.IsNullOrWhiteSpace(Input.LeadName) || string.IsNullOrWhiteSpace(Input.MobileNumber))
+        {
+            TempData["ErrorMessage"] = "Lead name and mobile number are required.";
             return RedirectToReturnUrl(returnUrl, "List");
         }
 
@@ -247,7 +277,10 @@ public class LeadController : Controller
         List<string>? category, List<string>? items, List<string>? location,
         List<string>? h1, List<string>? h2, List<string>? h3,
         List<string>? w1, List<string>? w2, List<string>? w3,
-        List<string>? types, List<string>? glass, List<string>? topology)
+        List<string>? types, List<string>? glass, List<string>? topology,
+        List<string>? quantity, List<string>? areaCharge, List<string>? amount,
+        string? requirementType = null, string? itemName = null, string? remarks = null,
+        bool itemizedRequirement = false)
     {
         var lead = LeadStore.GetById(leadId);
         if (lead is null) return RedirectToAction("List");
@@ -264,12 +297,106 @@ public class LeadController : Controller
             w3?.Count ?? 0,
             types?.Count ?? 0,
             glass?.Count ?? 0,
-            topology?.Count ?? 0
+            topology?.Count ?? 0,
+            quantity?.Count ?? 0,
+            areaCharge?.Count ?? 0,
+            amount?.Count ?? 0
         };
         var count = counts.Max();
 
+        if (itemizedRequirement && count == 0)
+        {
+            TempData["RequirementError"] = "Add at least one item before saving the requirement.";
+            return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+        }
+
+        // 1. Single requirement form submission (standard)
+        if (count == 0 && (!string.IsNullOrWhiteSpace(title) || !string.IsNullOrWhiteSpace(requirementType) || !string.IsNullOrWhiteSpace(itemName)))
+        {
+            string imagePath = "";
+            if (image is not null && image.Length > 0)
+            {
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".doc", ".docx" };
+                var ext = Path.GetExtension(image.FileName).ToLowerInvariant();
+                if (allowedExtensions.Contains(ext))
+                {
+                    var uploadsFolder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
+                    Directory.CreateDirectory(uploadsFolder);
+                    var fileName = $"{Guid.NewGuid()}{ext}";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await image.CopyToAsync(stream);
+                    }
+                    imagePath = $"/uploads/requirements/{fileName}";
+                }
+            }
+
+            var cleanType = requirementType?.Trim() ?? "";
+            var cleanTitle = !string.IsNullOrWhiteSpace(title) ? title.Trim() : (!string.IsNullOrWhiteSpace(itemName) ? itemName.Trim() : (!string.IsNullOrWhiteSpace(cleanType) ? cleanType : "Requirement"));
+            var cleanItem = !string.IsNullOrWhiteSpace(itemName) ? itemName.Trim() : cleanTitle;
+            var cleanQty = quantity?.FirstOrDefault()?.Trim() ?? "1";
+
+            lead.Requirements.Add(new RequirementEntry
+            {
+                Title = cleanTitle,
+                ItemName = cleanItem,
+                Item = cleanItem,
+                RequirementType = cleanType,
+                Category = cleanType,
+                Quantity = string.IsNullOrWhiteSpace(cleanQty) ? "1" : cleanQty,
+                Priority = string.IsNullOrWhiteSpace(priority) ? "Medium" : priority.Trim(),
+                ExpectedDate = expectedDate?.Trim() ?? "",
+                Budget = budget?.Trim() ?? "",
+                Status = string.IsNullOrWhiteSpace(status) ? "New" : status.Trim(),
+                ImagePath = imagePath,
+                Description = description?.Trim() ?? "",
+                Details = description?.Trim() ?? "",
+                Remarks = remarks?.Trim() ?? ""
+            });
+
+            await _db.SaveChangesAsync();
+            return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+        }
+
         if (count > 0)
         {
+            for (int i = 0; i < count; i++)
+            {
+                var rowCategory = category?.ElementAtOrDefault(i)?.Trim() ?? "";
+                var rowItem = items?.ElementAtOrDefault(i)?.Trim() ?? "";
+                var rowImage = Request.Form.Files.GetFile($"requirementImage_{i}")
+                               ?? Request.Form.Files.GetFile($"requirementImage[{i}]")
+                               ?? Request.Form.Files.ElementAtOrDefault(i);
+                var imageData = Request.Form[$"requirementImageData_{i}"].FirstOrDefault()
+                                ?? Request.Form[$"requirementImageData[{i}]"].FirstOrDefault()
+                                ?? (Request.Form["requirementImageData"].Count > i ? Request.Form["requirementImageData"][i] : null);
+                var hasAnyData = !string.IsNullOrWhiteSpace(rowCategory) ||
+                                 !string.IsNullOrWhiteSpace(rowItem) ||
+                                 !string.IsNullOrWhiteSpace(types?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(topology?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(glass?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(location?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(h1?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(h2?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(h3?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(w1?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(w2?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(w3?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(quantity?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(areaCharge?.ElementAtOrDefault(i)) ||
+                                 !string.IsNullOrWhiteSpace(amount?.ElementAtOrDefault(i)) ||
+                                 rowImage is { Length: > 0 } || !string.IsNullOrWhiteSpace(imageData);
+                if (!hasAnyData)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(rowCategory) || string.IsNullOrWhiteSpace(rowItem))
+                {
+                    TempData["RequirementError"] = "Enter a Category and Item for every non-empty item row.";
+                    return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                }
+            }
+
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
             var uploadsFolder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
 
@@ -284,6 +411,9 @@ public class LeadController : Controller
                 var _w1 = w1?.ElementAtOrDefault(i)?.Trim() ?? "";
                 var _w2 = w2?.ElementAtOrDefault(i)?.Trim() ?? "";
                 var _w3 = w3?.ElementAtOrDefault(i)?.Trim() ?? "";
+                var qty = quantity?.ElementAtOrDefault(i)?.Trim() ?? "";
+                var area = areaCharge?.ElementAtOrDefault(i)?.Trim() ?? "";
+                var rowAmount = amount?.ElementAtOrDefault(i)?.Trim() ?? "";
                 var typ = types?.ElementAtOrDefault(i)?.Trim() ?? "";
                 var gls = glass?.ElementAtOrDefault(i)?.Trim() ?? "";
                 var top = topology?.ElementAtOrDefault(i)?.Trim() ?? "";
@@ -406,6 +536,9 @@ public class LeadController : Controller
                     W1 = _w1,
                     W2 = _w2,
                     W3 = _w3,
+                    Quantity = string.IsNullOrWhiteSpace(qty) ? "1" : qty,
+                    AreaCharge = area,
+                    Amount = rowAmount,
                     Types = typ,
                     Topology = top,
                     Glass = gls,
@@ -447,10 +580,30 @@ public class LeadController : Controller
                 ExpectedDate = expectedDate ?? "",
                 Budget = budget ?? "",
                 Status = status ?? "New",
-                ImagePath = imagePath
+                ImagePath = imagePath,
+                Quantity = quantity?.FirstOrDefault()?.Trim() ?? "1",
+                AreaCharge = areaCharge?.FirstOrDefault()?.Trim() ?? "",
+                Amount = amount?.FirstOrDefault()?.Trim() ?? ""
             });
         }
 
+        return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+    }
+
+    /// <summary>Deletes a requirement entry from a lead.</summary>
+    [HttpPost]
+    public async Task<IActionResult> DeleteRequirement(string leadId, int reqId)
+    {
+        var lead = LeadStore.GetById(leadId);
+        if (lead is not null)
+        {
+            var req = lead.Requirements.FirstOrDefault(r => r.Id == reqId);
+            if (req is not null)
+            {
+                lead.Requirements.Remove(req);
+                await _db.SaveChangesAsync();
+            }
+        }
         return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
     }
 

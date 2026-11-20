@@ -936,7 +936,7 @@
                     clientId: c.ClientId || c.clientId || c.LeadId || c.leadId || '',
                     leadId: c.LeadId || c.leadId || '',
                     clientName: c.ClientName || c.clientName || '',
-                    companyName: c.CompanyName || c.companyName || c.ClientName || c.clientName || '',
+                    companyName: c.CompanyName || c.companyName || '',
                     email: c.Email || c.email || '',
                     mobileNumber: c.MobileNumber || c.mobileNumber || '',
                     projectsCount: c.ProjectsCount !== undefined ? c.ProjectsCount : (c.projectsCount || 0)
@@ -959,11 +959,12 @@
             recSelect.appendChild(defaultOpt);
 
             clients.forEach(c => {
-                const name = c.companyName || c.clientName || 'Client';
-                const extra = c.clientName && c.companyName !== c.clientName ? ` (${c.clientName})` : '';
+                const name = c.clientName || c.companyName || 'Client';
                 const opt = document.createElement('option');
                 opt.value = name;
-                opt.textContent = name + extra;
+                opt.dataset.name = c.clientName || '';
+                opt.dataset.company = c.companyName || '';
+                opt.textContent = name;
                 recSelect.appendChild(opt);
             });
         }
@@ -1296,8 +1297,7 @@
         const selectedClientName = (document.getElementById('modalClientSelect')?.value || '').toLowerCase();
 
         clientsToRender.forEach(c => {
-            const displayName = c.companyName || c.clientName || 'Client';
-            const extra = c.clientName && c.companyName && c.companyName !== c.clientName ? c.clientName : (c.leadId || '');
+            const displayName = c.clientName || c.companyName || 'Client';
             const cid = c.clientId || c.leadId || '';
             const isSelected = (cid && cid === selectedClientId) || (displayName.toLowerCase() === selectedClientName);
 
@@ -1312,21 +1312,13 @@
             item.style.alignItems = 'center';
             item.style.background = isSelected ? '#eff6ff' : '#fff';
 
-            item.innerHTML = `
-                <div>
-                    <div style="font-weight:600;color:var(--ink-800);">${escapeHtml(displayName)}</div>
-                    ${extra ? `<div style="font-size:11px;color:var(--ink-500);">${escapeHtml(extra)}</div>` : ''}
-                </div>
-                <span class="badge" style="font-size:10px;background:#f1f5f9;color:var(--ink-600);border:1px solid #e2e8f0;">
-                    ${c.projectsCount || 0} proj
-                </span>
-            `;
+            item.innerHTML = `<div style="font-weight:600;color:var(--ink-800);">${escapeHtml(displayName)}</div>`;
 
             item.onmouseover = () => { if (!isSelected) item.style.background = '#f8fafc'; };
             item.onmouseout = () => { if (!isSelected) item.style.background = '#fff'; };
             item.onclick = (e) => {
                 e.stopPropagation();
-                selectClient(cid, displayName, c.companyName || displayName);
+                selectClient(cid, displayName, c.companyName || '');
             };
 
             container.appendChild(item);
@@ -1357,7 +1349,7 @@
 
         if (idInput) idInput.value = clientId || '';
         if (nameInput) nameInput.value = clientName || '';
-        const displayText = clientCompany || clientName || '-- Select Client --';
+        const displayText = clientName || clientCompany || '-- Select Client --';
         if (textSpan) {
             textSpan.textContent = displayText;
             textSpan.style.color = 'var(--ink-900)';
@@ -1397,12 +1389,16 @@
         if (!clientName && !clientId) {
             currentFilteredProjects = allProjects.slice();
         } else {
-            const cLower = clientName.toLowerCase();
+            const selectedClient = allClients.find(c =>
+                clientId && (c.clientId === clientId || c.leadId === clientId));
+            const clientTerms = [...new Set([clientName, selectedClient?.companyName]
+                .filter(Boolean)
+                .map(name => name.toLowerCase()))];
             currentFilteredProjects = allProjects.filter(p => {
                 const pClient = (p.clientName || '').toLowerCase();
                 const pComp = (p.clientCompany || '').toLowerCase();
-                return pClient === cLower || pComp === cLower ||
-                       (cLower && (pClient.includes(cLower) || pComp.includes(cLower)));
+                return clientTerms.some(term =>
+                    pClient === term || pComp === term || pClient.includes(term) || pComp.includes(term));
             });
         }
 
@@ -1931,7 +1927,7 @@
         const taxName = selectedTaxOpt ? (selectedTaxOpt.getAttribute('data-name') || '') : '';
 
         const matchedClient = allClients.find(c => (clientId && (c.clientId === clientId || c.leadId === clientId)) || (c.companyName === clientName || c.clientName === clientName));
-        const resolvedCompany = matchedClient ? (matchedClient.companyName || clientName) : clientName;
+        const resolvedCompany = matchedClient ? matchedClient.companyName : '';
         const resolvedContact = matchedClient ? (matchedClient.clientName || clientName) : clientName;
 
         const payload = {
@@ -2059,7 +2055,9 @@
         }
 
         try {
-            const res = await fetch(`/api/clients/${encodeURIComponent(client)}/projects`);
+            const selectedOpt = document.getElementById('recClientSelect').selectedOptions[0];
+            const projectLookupName = selectedOpt?.dataset.company || client;
+            const res = await fetch(`/api/clients/${encodeURIComponent(projectLookupName)}/projects`);
             const projects = res.ok ? await res.json() : [];
             if (!projects.length) {
                 const def = document.createElement('option');
@@ -2100,7 +2098,10 @@
     async function submitRecurringForm(e) {
         e.preventDefault();
         const projectId = parseInt(document.getElementById('recProjectSelect').value, 10);
-        const clientName = document.getElementById('recClientSelect').value;
+        const clientSelect = document.getElementById('recClientSelect');
+        const selectedClient = clientSelect.options[clientSelect.selectedIndex];
+        const clientName = selectedClient?.dataset.name || clientSelect.value;
+        const clientCompany = selectedClient?.dataset.company || '';
 
         if (!projectId) {
             showToast('Please select a project', true);
@@ -2116,7 +2117,7 @@
         const payload = {
             projectId: projectId,
             clientName: clientName,
-            clientCompany: clientName,
+            clientCompany: clientCompany,
             title: document.getElementById('recDescription').value.trim(),
             description: document.getElementById('recDescription').value.trim(),
             amount: parseFloat(document.getElementById('recAmount').value) || 0,

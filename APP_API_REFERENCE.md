@@ -582,6 +582,9 @@ Accept: application/json
 - `POST /api/v1/app/leads/{id}/requirements`: Adds a requirement against a lead.
 - `DELETE /api/v1/app/leads/{id}/requirements/{reqId}`: Removes a requirement.
 
+Item rows may optionally include `quantity`, `areaCharge` (area in square feet), and `amount`.
+The response includes these saved values; older payloads without them remain supported.
+
 ---
 
 ## 4. Projects Module (`/api/v1/app/projects`)

@@ -46,6 +46,7 @@ public class VisitEntry
     public string? Conversation { get; set; } = "";
     public string? Outcome { get; set; } = ""; // Interested / Not Interested / Follow-up Needed / Deal Closed
     public string? Remarks { get; set; } = "";
+    public string? ImagePathsJson { get; set; } = "[]";
 }
 
 public class CallHistoryEntry
@@ -96,7 +97,9 @@ public class RequirementEntry
 
     // Item specifications (same parameters as web panel table)
     public string? Category { get; set; } = "";
+    public int? CategoryId { get; set; }
     public string? Item { get; set; } = "";
+    public int? ItemId { get; set; }
     public string? Location { get; set; } = "";
     public string? H1 { get; set; } = "";
     public string? H2 { get; set; } = "";
@@ -105,13 +108,18 @@ public class RequirementEntry
     public string? W2 { get; set; } = "";
     public string? W3 { get; set; } = "";
     public string? Types { get; set; } = "";
+    public int? TypeId { get; set; }
     public string? Topology { get; set; } = "";
+    public int? TopologyId { get; set; }
     public string? Glass { get; set; } = "";
+    public int? GlassId { get; set; }
 
     // Kept for backward compatibility with older seeded data / existing screens.
     public string? RequirementType { get; set; } = "";
     public string? ItemName { get; set; } = "";
     public string? Quantity { get; set; } = "";
+    public string? AreaCharge { get; set; } = "";
+    public string? Amount { get; set; } = "";
     public string? Details { get; set; } = "";
     public string? Remarks { get; set; } = "";
 }
@@ -231,11 +239,6 @@ public static class LookupData
 {
     public static readonly string[] Priorities = { "High", "Medium", "Low" };
 
-    public static readonly string[] RequirementTypes =
-    {
-        "Material", "Service", "Product", "Price Quote", "Demo", "Other"
-    };
-
     public static readonly string[] CallTypes = { "Outgoing", "Incoming" };
     public static readonly string[] CallStatuses = { "Connected", "Not Answered", "Busy", "Follow-up Needed" };
     public static readonly string[] FollowUpTypes = { "Call", "Email", "Visit", "Meeting" };
@@ -248,5 +251,7 @@ public static class LookupData
     public static List<string> Employees => SettingsStore.Employees;
     public static List<string> Statuses => SettingsStore.Statuses;
     public static List<string> Sources => SettingsStore.Sources;
+    public static List<string> RequirementCategories => SettingsStore.RequirementCategories;
+    public static List<string> RequirementTypes => SettingsStore.RequirementTypes;
     public static List<TaxMaster> Taxes => SettingsStore.ActiveTaxes;
 }

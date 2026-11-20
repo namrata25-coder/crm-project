@@ -20,6 +20,8 @@ public class AppDbContext : DbContext
     public DbSet<UserRoleEntry> Users => Set<UserRoleEntry>();
     public DbSet<LeadStatusOption> StatusOptions => Set<LeadStatusOption>();
     public DbSet<LeadSourceOption> SourceOptions => Set<LeadSourceOption>();
+    public DbSet<RequirementTypeOption> RequirementTypeOptions => Set<RequirementTypeOption>();
+    public DbSet<MasterData> MasterData => Set<MasterData>();
     public DbSet<FollowUpSettings> FollowUpSettings => Set<FollowUpSettings>();
     public DbSet<TaxMaster> TaxMasters => Set<TaxMaster>();
     public DbSet<RoleMaster> RoleMasters => Set<RoleMaster>();
@@ -51,7 +53,15 @@ public class AppDbContext : DbContext
 
         lead.OwnsMany(l => l.CallHistory,       b => b.WithOwner().HasForeignKey("LeadId_FK"));
         lead.OwnsMany(l => l.FollowUps,         b => b.WithOwner().HasForeignKey("LeadId_FK"));
-        lead.OwnsMany(l => l.Requirements,      b => b.WithOwner().HasForeignKey("LeadId_FK"));
+        lead.OwnsMany(l => l.Requirements, b =>
+        {
+            b.WithOwner().HasForeignKey("LeadId_FK");
+            b.HasOne<MasterData>().WithMany().HasForeignKey(r => r.CategoryId).OnDelete(DeleteBehavior.NoAction);
+            b.HasOne<MasterData>().WithMany().HasForeignKey(r => r.ItemId).OnDelete(DeleteBehavior.NoAction);
+            b.HasOne<MasterData>().WithMany().HasForeignKey(r => r.TypeId).OnDelete(DeleteBehavior.NoAction);
+            b.HasOne<MasterData>().WithMany().HasForeignKey(r => r.TopologyId).OnDelete(DeleteBehavior.NoAction);
+            b.HasOne<MasterData>().WithMany().HasForeignKey(r => r.GlassId).OnDelete(DeleteBehavior.NoAction);
+        });
         lead.OwnsMany(l => l.Visits,            b => b.WithOwner().HasForeignKey("LeadId_FK"));
         lead.OwnsMany(l => l.AssignmentHistory, b => b.WithOwner().HasForeignKey("LeadId_FK"));
 
@@ -109,6 +119,113 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<LeadSourceOption>().HasKey(s => s.Id);
         modelBuilder.Entity<LeadSourceOption>().HasIndex(s => s.Value).IsUnique();
+
+        modelBuilder.Entity<RequirementTypeOption>().HasKey(r => r.Id);
+        modelBuilder.Entity<RequirementTypeOption>().HasIndex(r => r.Value).IsUnique();
+
+        modelBuilder.Entity<MasterData>(master =>
+        {
+            master.ToTable("MasterData");
+            master.HasKey(m => m.Id);
+            master.Property(m => m.MasterType).IsRequired().HasMaxLength(20);
+            master.Property(m => m.Name).IsRequired().HasMaxLength(150);
+            master.HasOne(m => m.Parent)
+                .WithMany(m => m.Children)
+                .HasForeignKey(m => m.ParentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            master.HasIndex(m => new { m.MasterType, m.ParentId, m.IsActive });
+            master.HasData(
+                new MasterData { Id = 1, MasterType = "Category", Name = "Window", IsActive = true },
+                new MasterData { Id = 2, MasterType = "Category", Name = "Door", IsActive = true },
+                new MasterData { Id = 3, MasterType = "Category", Name = "Partition", IsActive = true },
+                new MasterData { Id = 4, MasterType = "Category", Name = "Facade", IsActive = true },
+                new MasterData { Id = 101, MasterType = "Item", Name = "Sliding Window", ParentId = 1, IsActive = true },
+                new MasterData { Id = 102, MasterType = "Item", Name = "Casement Window", ParentId = 1, IsActive = true },
+                new MasterData { Id = 107, MasterType = "Item", Name = "Fixed Window", ParentId = 1, IsActive = true },
+                new MasterData { Id = 103, MasterType = "Item", Name = "Sliding Door", ParentId = 2, IsActive = true },
+                new MasterData { Id = 104, MasterType = "Item", Name = "Hinged Door", ParentId = 2, IsActive = true },
+                new MasterData { Id = 108, MasterType = "Item", Name = "Folding Door", ParentId = 2, IsActive = true },
+                new MasterData { Id = 105, MasterType = "Item", Name = "Glass Partition", ParentId = 3, IsActive = true },
+                new MasterData { Id = 106, MasterType = "Item", Name = "Aluminium Partition", ParentId = 3, IsActive = true },
+                new MasterData { Id = 109, MasterType = "Item", Name = "Curtain Wall", ParentId = 4, IsActive = true },
+                new MasterData { Id = 110, MasterType = "Item", Name = "Structural Glazing", ParentId = 4, IsActive = true },
+                new MasterData { Id = 201, MasterType = "Type", Name = "2-Track", ParentId = 101, IsActive = true },
+                new MasterData { Id = 202, MasterType = "Type", Name = "3-Track", ParentId = 101, IsActive = true },
+                new MasterData { Id = 203, MasterType = "Type", Name = "2-Track", ParentId = 102, IsActive = true },
+                new MasterData { Id = 204, MasterType = "Type", Name = "3-Track", ParentId = 102, IsActive = true },
+                new MasterData { Id = 205, MasterType = "Type", Name = "Fixed", ParentId = 102, IsActive = true },
+                new MasterData { Id = 206, MasterType = "Type", Name = "Openable", ParentId = 102, IsActive = true },
+                new MasterData { Id = 207, MasterType = "Type", Name = "2-Track", ParentId = 103, IsActive = true },
+                new MasterData { Id = 208, MasterType = "Type", Name = "3-Track", ParentId = 103, IsActive = true },
+                new MasterData { Id = 209, MasterType = "Type", Name = "Fixed", ParentId = 103, IsActive = true },
+                new MasterData { Id = 210, MasterType = "Type", Name = "Openable", ParentId = 103, IsActive = true },
+                new MasterData { Id = 211, MasterType = "Type", Name = "Fixed", ParentId = 104, IsActive = true },
+                new MasterData { Id = 212, MasterType = "Type", Name = "Openable", ParentId = 104, IsActive = true },
+                new MasterData { Id = 213, MasterType = "Type", Name = "2-Track", ParentId = 105, IsActive = true },
+                new MasterData { Id = 214, MasterType = "Type", Name = "3-Track", ParentId = 105, IsActive = true },
+                new MasterData { Id = 215, MasterType = "Type", Name = "Fixed", ParentId = 105, IsActive = true },
+                new MasterData { Id = 216, MasterType = "Type", Name = "Openable", ParentId = 105, IsActive = true },
+                new MasterData { Id = 217, MasterType = "Type", Name = "2-Track", ParentId = 106, IsActive = true },
+                new MasterData { Id = 218, MasterType = "Type", Name = "3-Track", ParentId = 106, IsActive = true },
+                new MasterData { Id = 219, MasterType = "Type", Name = "Fixed", ParentId = 106, IsActive = true },
+                new MasterData { Id = 220, MasterType = "Type", Name = "Openable", ParentId = 106, IsActive = true },
+                new MasterData { Id = 221, MasterType = "Type", Name = "Fixed", ParentId = 107, IsActive = true },
+                new MasterData { Id = 222, MasterType = "Type", Name = "Openable", ParentId = 107, IsActive = true },
+                new MasterData { Id = 223, MasterType = "Type", Name = "2-Track", ParentId = 107, IsActive = true },
+                new MasterData { Id = 224, MasterType = "Type", Name = "3-Track", ParentId = 107, IsActive = true },
+                new MasterData { Id = 225, MasterType = "Type", Name = "2-Track", ParentId = 108, IsActive = true },
+                new MasterData { Id = 226, MasterType = "Type", Name = "3-Track", ParentId = 108, IsActive = true },
+                new MasterData { Id = 227, MasterType = "Type", Name = "Fixed", ParentId = 108, IsActive = true },
+                new MasterData { Id = 228, MasterType = "Type", Name = "Openable", ParentId = 108, IsActive = true },
+                new MasterData { Id = 229, MasterType = "Type", Name = "2-Track", ParentId = 109, IsActive = true },
+                new MasterData { Id = 230, MasterType = "Type", Name = "3-Track", ParentId = 109, IsActive = true },
+                new MasterData { Id = 231, MasterType = "Type", Name = "Fixed", ParentId = 109, IsActive = true },
+                new MasterData { Id = 232, MasterType = "Type", Name = "Openable", ParentId = 109, IsActive = true },
+                new MasterData { Id = 233, MasterType = "Type", Name = "2-Track", ParentId = 110, IsActive = true },
+                new MasterData { Id = 234, MasterType = "Type", Name = "3-Track", ParentId = 110, IsActive = true },
+                new MasterData { Id = 235, MasterType = "Type", Name = "Fixed", ParentId = 110, IsActive = true },
+                new MasterData { Id = 236, MasterType = "Type", Name = "Openable", ParentId = 110, IsActive = true },
+                new MasterData { Id = 301, MasterType = "Topology", Name = "2 Panel", ParentId = 101, IsActive = true },
+                new MasterData { Id = 302, MasterType = "Topology", Name = "3 Panel", ParentId = 101, IsActive = true },
+                new MasterData { Id = 303, MasterType = "Topology", Name = "2 Panel", ParentId = 102, IsActive = true },
+                new MasterData { Id = 304, MasterType = "Topology", Name = "3 Panel", ParentId = 102, IsActive = true },
+                new MasterData { Id = 305, MasterType = "Topology", Name = "4 Panel", ParentId = 102, IsActive = true },
+                new MasterData { Id = 306, MasterType = "Topology", Name = "Corner", ParentId = 102, IsActive = true },
+                new MasterData { Id = 307, MasterType = "Topology", Name = "2 Panel", ParentId = 103, IsActive = true },
+                new MasterData { Id = 308, MasterType = "Topology", Name = "3 Panel", ParentId = 103, IsActive = true },
+                new MasterData { Id = 309, MasterType = "Topology", Name = "4 Panel", ParentId = 103, IsActive = true },
+                new MasterData { Id = 310, MasterType = "Topology", Name = "Corner", ParentId = 103, IsActive = true },
+                new MasterData { Id = 311, MasterType = "Topology", Name = "2 Panel", ParentId = 104, IsActive = true },
+                new MasterData { Id = 312, MasterType = "Topology", Name = "4 Panel", ParentId = 104, IsActive = true },
+                new MasterData { Id = 313, MasterType = "Topology", Name = "2 Panel", ParentId = 105, IsActive = true },
+                new MasterData { Id = 314, MasterType = "Topology", Name = "3 Panel", ParentId = 105, IsActive = true },
+                new MasterData { Id = 315, MasterType = "Topology", Name = "4 Panel", ParentId = 105, IsActive = true },
+                new MasterData { Id = 316, MasterType = "Topology", Name = "Corner", ParentId = 105, IsActive = true },
+                new MasterData { Id = 317, MasterType = "Topology", Name = "2 Panel", ParentId = 106, IsActive = true },
+                new MasterData { Id = 318, MasterType = "Topology", Name = "3 Panel", ParentId = 106, IsActive = true },
+                new MasterData { Id = 319, MasterType = "Topology", Name = "4 Panel", ParentId = 106, IsActive = true },
+                new MasterData { Id = 320, MasterType = "Topology", Name = "Corner", ParentId = 106, IsActive = true },
+                new MasterData { Id = 321, MasterType = "Topology", Name = "2 Panel", ParentId = 107, IsActive = true },
+                new MasterData { Id = 322, MasterType = "Topology", Name = "3 Panel", ParentId = 107, IsActive = true },
+                new MasterData { Id = 323, MasterType = "Topology", Name = "4 Panel", ParentId = 107, IsActive = true },
+                new MasterData { Id = 324, MasterType = "Topology", Name = "Corner", ParentId = 107, IsActive = true },
+                new MasterData { Id = 325, MasterType = "Topology", Name = "2 Panel", ParentId = 108, IsActive = true },
+                new MasterData { Id = 326, MasterType = "Topology", Name = "3 Panel", ParentId = 108, IsActive = true },
+                new MasterData { Id = 327, MasterType = "Topology", Name = "4 Panel", ParentId = 108, IsActive = true },
+                new MasterData { Id = 328, MasterType = "Topology", Name = "Corner", ParentId = 108, IsActive = true },
+                new MasterData { Id = 329, MasterType = "Topology", Name = "2 Panel", ParentId = 109, IsActive = true },
+                new MasterData { Id = 330, MasterType = "Topology", Name = "3 Panel", ParentId = 109, IsActive = true },
+                new MasterData { Id = 331, MasterType = "Topology", Name = "4 Panel", ParentId = 109, IsActive = true },
+                new MasterData { Id = 332, MasterType = "Topology", Name = "Corner", ParentId = 109, IsActive = true },
+                new MasterData { Id = 333, MasterType = "Topology", Name = "2 Panel", ParentId = 110, IsActive = true },
+                new MasterData { Id = 334, MasterType = "Topology", Name = "3 Panel", ParentId = 110, IsActive = true },
+                new MasterData { Id = 335, MasterType = "Topology", Name = "4 Panel", ParentId = 110, IsActive = true },
+                new MasterData { Id = 336, MasterType = "Topology", Name = "Corner", ParentId = 110, IsActive = true },
+                new MasterData { Id = 401, MasterType = "Glass", Name = "Clear", IsActive = true },
+                new MasterData { Id = 402, MasterType = "Glass", Name = "Tinted", IsActive = true },
+                new MasterData { Id = 403, MasterType = "Glass", Name = "Toughened", IsActive = true },
+                new MasterData { Id = 404, MasterType = "Glass", Name = "Frosted", IsActive = true });
+        });
 
         modelBuilder.Entity<FollowUpSettings>().HasKey(f => f.Id);
         modelBuilder.Entity<FollowUpSettings>().Property(f => f.Id).ValueGeneratedNever();
@@ -308,6 +425,13 @@ public class LeadStatusOption
 
 /// <summary>One selectable Lead Source value (Settings > Lead Sources).</summary>
 public class LeadSourceOption
+{
+    public int Id { get; set; }
+    public string Value { get; set; } = "";
+}
+
+/// <summary>One selectable Requirement Type value (Settings > Requirement Types).</summary>
+public class RequirementTypeOption
 {
     public int Id { get; set; }
     public string Value { get; set; } = "";

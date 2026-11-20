@@ -121,6 +121,33 @@ public class WorkController : Controller
         return SettingsStore.Employees;
     }
 
+    private List<string> GetProjectManagersList()
+    {
+        return _db.Users
+            .Where(u => !string.IsNullOrWhiteSpace(u.Name) && u.Role != null)
+            .AsEnumerable()
+            .Where(u => string.Equals(u.Role?.Trim(), "Project Manager", StringComparison.OrdinalIgnoreCase))
+            .Select(u => u.Name!.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
+    }
+
+    private List<string> GetMembersList()
+    {
+        return _db.Users
+            .AsNoTracking()
+            .Where(u => !string.IsNullOrWhiteSpace(u.Name))
+            .Select(u => u.Name!)
+            .AsEnumerable()
+            .Select(name => name.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
+    }
+
     private async Task<List<WorkProject>> GetAccessibleProjectsAsync()
     {
         var projectIds = await ProjectAccessPolicy.GetAccessibleProjectIdsAsync(_db, User);
@@ -176,7 +203,8 @@ public class WorkController : Controller
             .ToListAsync();
         var projects = ProjectAccessPolicy.FilterAccessible(_db, User, allProjects);
 
-        ViewData["Employees"] = GetEmployeesList();
+        ViewData["ProjectManagers"] = GetProjectManagersList();
+        ViewData["Members"] = GetMembersList();
         ViewData["Clients"]   = await _db.Leads
             .Select(l => new { l.LeadName, l.CompanyName })
             .Where(l => !string.IsNullOrWhiteSpace(l.LeadName))

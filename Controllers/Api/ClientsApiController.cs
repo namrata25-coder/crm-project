@@ -40,10 +40,10 @@ public class ClientsApiController : ControllerBase
             // Populate from Leads
             foreach (var lead in leads)
             {
-                var name = !string.IsNullOrWhiteSpace(lead.CompanyName) ? lead.CompanyName : lead.LeadName;
+                var name = !string.IsNullOrWhiteSpace(lead.LeadName) ? lead.LeadName : lead.CompanyName;
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
-                var key = name.Trim();
+                var key = $"lead:{(!string.IsNullOrWhiteSpace(lead.LeadId) ? lead.LeadId : lead.Id.ToString())}";
                 if (!clientMap.ContainsKey(key))
                 {
                     clientMap[key] = new ClientLookupDto
@@ -51,7 +51,7 @@ public class ClientsApiController : ControllerBase
                         ClientId = !string.IsNullOrWhiteSpace(lead.LeadId) ? lead.LeadId : lead.Id.ToString(),
                         LeadId = lead.LeadId ?? "",
                         ClientName = lead.LeadName ?? "",
-                        CompanyName = lead.CompanyName ?? lead.LeadName ?? "",
+                        CompanyName = lead.CompanyName ?? "",
                         Email = lead.Email ?? "",
                         MobileNumber = lead.MobileNumber ?? "",
                         ProjectsCount = projects.Count(p => 
@@ -65,10 +65,19 @@ public class ClientsApiController : ControllerBase
             // Populate from Projects (if any client was created directly in Work module)
             foreach (var p in projects)
             {
-                var name = !string.IsNullOrWhiteSpace(p.ClientCompany) ? p.ClientCompany : p.ClientName;
+                var name = !string.IsNullOrWhiteSpace(p.ClientName) ? p.ClientName : p.ClientCompany;
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
-                var key = name.Trim();
+                var hasLead = leads.Any(lead =>
+                    (!string.IsNullOrWhiteSpace(p.ClientName) &&
+                     (string.Equals(lead.LeadName, p.ClientName, StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(lead.CompanyName, p.ClientName, StringComparison.OrdinalIgnoreCase))) ||
+                    (!string.IsNullOrWhiteSpace(p.ClientCompany) &&
+                     (string.Equals(lead.CompanyName, p.ClientCompany, StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(lead.LeadName, p.ClientCompany, StringComparison.OrdinalIgnoreCase))));
+                if (hasLead) continue;
+
+                var key = $"project:{name.Trim()}|{p.ClientCompany?.Trim()}";
                 if (!clientMap.ContainsKey(key))
                 {
                     clientMap[key] = new ClientLookupDto
@@ -76,7 +85,7 @@ public class ClientsApiController : ControllerBase
                         ClientId = !string.IsNullOrWhiteSpace(p.ProjectCode) ? p.ProjectCode : $"CLIENT-{p.Id}",
                         LeadId = "",
                         ClientName = p.ClientName ?? "",
-                        CompanyName = p.ClientCompany ?? p.ClientName ?? "",
+                        CompanyName = p.ClientCompany ?? "",
                         Email = "",
                         MobileNumber = "",
                         ProjectsCount = projects.Count(x => 
@@ -98,7 +107,7 @@ public class ClientsApiController : ControllerBase
                     c.MobileNumber.ToLower().Contains(term));
             }
 
-            return Ok(list.OrderBy(c => c.CompanyName).ToList());
+            return Ok(list.OrderBy(c => c.ClientName).ThenBy(c => c.CompanyName).ToList());
         }
         catch (Exception ex)
         {

@@ -396,7 +396,9 @@ public class TeamController : Controller
             return BadRequest(new { success = false, message = $"A role named '{cleanName}' already exists." });
 
         List<ModulePermissionItem> perms;
-        string dataAccess = string.IsNullOrWhiteSpace(dto.DataAccess) ? "OnlyAssigned" : dto.DataAccess;
+        string dataAccess = string.Equals(dto.DataAccess, "All", StringComparison.OrdinalIgnoreCase)
+            ? "All"
+            : "OnlyAssigned";
 
         if (!string.IsNullOrWhiteSpace(dto.CopyFromRole))
         {
@@ -404,7 +406,6 @@ public class TeamController : Controller
             if (sourceRole != null)
             {
                 perms = sourceRole.GetPermissions();
-                dataAccess = sourceRole.DataAccess;
             }
             else
             {

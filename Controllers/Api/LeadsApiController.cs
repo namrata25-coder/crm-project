@@ -1,6 +1,7 @@
 using CrmLeadManagement.Models;
 using CrmLeadManagement.Models.Dtos;
 using CrmLeadManagement.Security;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -258,6 +259,8 @@ public class LeadsApiController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(input.LeadName))
             return BadRequest(new ApiError { Message = "LeadName is required." });
+        if (string.IsNullOrWhiteSpace(input.MobileNumber))
+            return BadRequest(new ApiError { Message = "MobileNumber is required." });
 
         // Ignore any client-supplied LeadId on create; the store always assigns the next id.
         input.LeadId = "";
@@ -271,6 +274,10 @@ public class LeadsApiController : ControllerBase
     {
         if (LeadStore.GetById(id) is null)
             return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+        if (string.IsNullOrWhiteSpace(input.LeadName))
+            return BadRequest(new ApiError { Message = "LeadName is required." });
+        if (string.IsNullOrWhiteSpace(input.MobileNumber))
+            return BadRequest(new ApiError { Message = "MobileNumber is required." });
 
         input.LeadId = id;
         LeadStore.UpdateLead(input.ToLead());
@@ -450,6 +457,120 @@ public class LeadsApiController : ControllerBase
             leadId = lead.LeadId,
             visit = newVisit,
             lead = lead
+        });
+    }
+
+    // POST /api/leads/{id}/visits/upload (multipart/form-data, with optional visit photos)
+    [HttpPost("{id}/visits/upload")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddVisitWithImages(
+        string id,
+        [FromForm] AddVisitRequest request,
+        [FromForm] List<IFormFile>? images)
+    {
+        var lead = LeadStore.GetById(id);
+        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+
+        if (string.IsNullOrWhiteSpace(request.VisitDate) ||
+            string.IsNullOrWhiteSpace(request.VisitTime) ||
+            string.IsNullOrWhiteSpace(request.VisitLocation))
+        {
+            return BadRequest(new ApiError { Message = "Visit date, time and location are required." });
+        }
+
+        var imageFiles = images?.Where(image => image.Length > 0).ToList() ?? new List<IFormFile>();
+        if (imageFiles.Count > 10)
+        {
+            return BadRequest(new ApiError { Message = "You can attach up to 10 photos to a visit." });
+        }
+
+        const long maxImageSizeBytes = 10 * 1024 * 1024;
+        const long maxTotalSizeBytes = 25 * 1024 * 1024;
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".webp"
+        };
+
+        foreach (var image in imageFiles)
+        {
+            var extension = Path.GetExtension(image.FileName);
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new ApiError { Message = "Unsupported photo type. Allowed formats are JPG, PNG, GIF and WEBP." });
+            }
+
+            if (image.Length > maxImageSizeBytes)
+            {
+                return BadRequest(new ApiError { Message = "Each photo must be 10 MB or smaller." });
+            }
+        }
+
+        if (imageFiles.Sum(image => image.Length) > maxTotalSizeBytes)
+        {
+            return BadRequest(new ApiError { Message = "The total photo size must be 25 MB or smaller." });
+        }
+
+        var imagePaths = new List<string>();
+        try
+        {
+            if (imageFiles.Count > 0)
+            {
+                var uploadsFolder = Path.Combine(FinanceAttachmentService.UploadsPath, "visits");
+                Directory.CreateDirectory(uploadsFolder);
+
+                foreach (var image in imageFiles)
+                {
+                    var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                    var fileName = $"{Guid.NewGuid()}{extension}";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+                    var imagePath = $"/uploads/visits/{fileName}";
+                    imagePaths.Add(imagePath);
+                    await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
+                    await image.CopyToAsync(stream);
+                }
+            }
+        }
+        catch (IOException ex)
+        {
+            foreach (var imagePath in imagePaths) FinanceAttachmentService.Delete(imagePath);
+            _logger.LogError(ex, "Failed to store visit photos for lead '{LeadId}'.", id);
+            return StatusCode(500, new ApiError { Message = "Failed to store visit photos." });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            foreach (var imagePath in imagePaths) FinanceAttachmentService.Delete(imagePath);
+            _logger.LogError(ex, "Permission denied while storing visit photos for lead '{LeadId}'.", id);
+            return StatusCode(500, new ApiError { Message = "Failed to store visit photos." });
+        }
+
+        var newVisit = new VisitEntry
+        {
+            VisitDate = request.VisitDate.Trim(),
+            VisitTime = request.VisitTime.Trim(),
+            VisitLocation = request.VisitLocation.Trim(),
+            Employee = string.IsNullOrWhiteSpace(request.Employee) ? (lead.AssignedTo ?? "") : request.Employee.Trim(),
+            Outcome = string.IsNullOrWhiteSpace(request.Outcome) ? "Interested" : request.Outcome.Trim(),
+            Conversation = request.Conversation?.Trim() ?? "",
+            Remarks = request.Remarks?.Trim() ?? "",
+            ImagePathsJson = JsonSerializer.Serialize(imagePaths)
+        };
+
+        lead.Visits.Add(newVisit);
+        if (!await TrySaveAsync($"add visit for lead '{id}'"))
+        {
+            foreach (var imagePath in imagePaths) FinanceAttachmentService.Delete(imagePath);
+            return StatusCode(500, new ApiError { Message = "Failed to save visit to database." });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message = "Visit saved successfully",
+            leadId = lead.LeadId,
+            visit = newVisit,
+            lead
         });
     }
 

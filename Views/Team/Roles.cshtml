@@ -308,11 +308,27 @@
                     <label class="form-label-custom">Role Name <span class="text-danger">*</span></label>
                     <input type="text" id="newRoleName" class="form-input-custom" placeholder="e.g. Senior Sales Executive" required autocomplete="off" />
                 </div>
-
-                
-                
-
-                
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Description</label>
+                    <textarea id="newRoleDesc" class="form-input-custom" rows="2" placeholder="Describe this role's responsibilities..."></textarea>
+                </div>
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Copy Permissions From</label>
+                    <select id="newRoleCopyFrom" class="form-input-custom">
+                        <option value="">Default permissions</option>
+                        @foreach (var role in Model.AllRoles)
+                        {
+                            <option value="@role.RoleName">@role.RoleName</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Data Access</label>
+                    <select id="newRoleDataAccess" class="form-input-custom">
+                        <option value="OnlyAssigned">Only assigned records</option>
+                        <option value="All">All records</option>
+                    </select>
+                </div>
             </div>
             <div class="modal-footer-custom">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalNewRole')">Cancel</button>
@@ -1391,7 +1407,8 @@ function openNewRoleModal() {
     const copySelect = document.getElementById("newRoleCopyFrom");
     if (copySelect) copySelect.value = currentRole || "";
     const dataAccess = document.getElementById("newRoleDataAccess");
-    if (dataAccess) dataAccess.value = "OnlyAssigned";
+    const currentDataAccess = document.querySelector('input[name="dataAccessScope"]:checked');
+    if (dataAccess) dataAccess.value = currentDataAccess ? currentDataAccess.value : "OnlyAssigned";
     openModal("modalNewRole");
     setTimeout(() => {
         const inp = document.getElementById("newRoleName");

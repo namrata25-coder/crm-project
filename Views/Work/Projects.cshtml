@@ -2,7 +2,8 @@
 @using CrmLeadManagement.Models
 @{
     ViewData["Title"] = "Projects";
-    var employees = ViewData["Employees"] as List<string> ?? new();
+    var projectManagers = ViewData["ProjectManagers"] as List<string> ?? new();
+    var members = ViewData["Members"] as List<string> ?? new();
     var clients = ViewData["Clients"] as dynamic;
 
     var canCreate = (bool)(ViewData["CanCreateProject"] ?? false);
@@ -177,16 +178,40 @@
                         <label>Project Manager</label>
                         <select name="projectManager" id="fProjectManager">
                             <option value="">-- Select Project Manager --</option>
-                            @foreach (var e in employees)
+                            @foreach (var manager in projectManagers)
                             {
-                                <option value="@e">@e</option>
+                                <option value="@manager">@manager</option>
                             }
                         </select>
                     </div>
 
                     <div class="form-field">
                         <label>Assigned Members</label>
-                        <input type="text" name="assignedMembers" id="fAssignedMembers" placeholder="e.g., Rohan, Priya, Vikram"/>
+                        <div id="assignedMemberPicker" style="position:relative;">
+                            <button type="button" id="assignedMembersButton" aria-expanded="false" aria-controls="assignedMembersDropdown"
+                                    onclick="toggleAssignedMembersDropdown(event)"
+                                    style="width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:space-between;text-align:left;">
+                                <span id="assignedMembersSummary" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">-- Select members --</span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </button>
+                            <div id="assignedMembersDropdown" onclick="event.stopPropagation()"
+                                 style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.14);">
+                                <input type="search" id="assignedMembersSearch" placeholder="Search members..."
+                                       aria-label="Search members" oninput="filterAssignedMemberOptions()"
+                                       style="width:100%;padding:7px 9px;margin-bottom:6px;border:1px solid var(--line);border-radius:6px;" />
+                                <div id="assignedMembersOptions" style="max-height:180px;overflow-y:auto;">
+                                    @foreach (var member in members)
+                                    {
+                                        <label class="assigned-member-option" style="display:flex;align-items:center;gap:8px;padding:7px 5px;cursor:pointer;">
+                                            <input type="checkbox" value="@member" onchange="updateAssignedMembers()" />
+                                            <span>@member</span>
+                                        </label>
+                                    }
+                                    <div id="assignedMembersNoResults" style="display:none;padding:8px 5px;color:var(--ink-500);font-size:12px;">No matching members found.</div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="assignedMembers" id="fAssignedMembers" />
+                        </div>
                     </div>
 
                     <div class="form-field">
@@ -483,7 +508,7 @@ function openAddProjectModal() {
     document.getElementById('fStartDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('fDeadline').value = '';
     setSelectValue('fProjectManager', '');
-    document.getElementById('fAssignedMembers').value = '';
+    setAssignedMembers('');
     document.getElementById('fBudget').value = 0;
     setSelectValue('fPriority', 'Medium');
     setSelectValue('fStatus', 'Active');
@@ -508,13 +533,78 @@ function openEditProjectModalById(id) {
     document.getElementById('fStartDate').value = p.StartDate || p.startDate || '';
     document.getElementById('fDeadline').value = p.Deadline || p.deadline || '';
     setSelectValue('fProjectManager', p.ProjectManager || p.projectManager || '');
-    document.getElementById('fAssignedMembers').value = p.AssignedMembers || p.assignedMembers || '';
+    setAssignedMembers(p.AssignedMembers || p.assignedMembers || '');
     document.getElementById('fBudget').value = p.Budget !== undefined ? p.Budget : (p.budget || 0);
     setSelectValue('fPriority', p.Priority || p.priority || 'Medium');
     setSelectValue('fStatus', p.Status || p.status || 'Active');
     document.getElementById('fNotes').value = p.Notes || p.notes || '';
     document.getElementById('projectModalTitleText').textContent = `Edit Project (${p.ProjectCode || p.projectCode || ''})`;
     openModal('addProjectModal');
+}
+
+function toggleAssignedMembersDropdown(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('assignedMembersDropdown');
+    const button = document.getElementById('assignedMembersButton');
+    const isOpen = dropdown.style.display === 'block';
+    dropdown.style.display = isOpen ? 'none' : 'block';
+    button.setAttribute('aria-expanded', String(!isOpen));
+    if (!isOpen) document.getElementById('assignedMembersSearch').focus();
+}
+
+function filterAssignedMemberOptions() {
+    const query = document.getElementById('assignedMembersSearch').value.trim().toLowerCase();
+    const options = Array.from(document.querySelectorAll('#assignedMembersOptions .assigned-member-option'));
+    let visibleCount = 0;
+    options.forEach(option => {
+        const matches = option.textContent.toLowerCase().includes(query);
+        option.style.display = matches ? 'flex' : 'none';
+        if (matches) visibleCount++;
+    });
+    document.getElementById('assignedMembersNoResults').style.display = visibleCount ? 'none' : 'block';
+}
+
+function updateAssignedMembers() {
+    const selected = Array.from(document.querySelectorAll('#assignedMembersOptions input[type="checkbox"]:checked'))
+        .map(checkbox => checkbox.value);
+    document.getElementById('fAssignedMembers').value = selected.join(', ');
+    document.getElementById('assignedMembersSummary').textContent =
+        selected.length ? selected.join(', ') : '-- Select members --';
+}
+
+function setAssignedMembers(value) {
+    const optionsContainer = document.getElementById('assignedMembersOptions');
+    optionsContainer.querySelectorAll('[data-legacy-member="true"]').forEach(option => option.remove());
+    optionsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => { checkbox.checked = false; });
+
+    const names = [...new Set((value || '').split(',').map(name => name.trim()).filter(Boolean))];
+    names.forEach(name => {
+        let checkbox = Array.from(optionsContainer.querySelectorAll('input[type="checkbox"]'))
+            .find(item => item.value.toLowerCase() === name.toLowerCase());
+        if (!checkbox) {
+            const label = document.createElement('label');
+            label.className = 'assigned-member-option';
+            label.dataset.legacyMember = 'true';
+            label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 5px;cursor:pointer;';
+            checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = name;
+            checkbox.checked = true;
+            checkbox.addEventListener('change', updateAssignedMembers);
+            const text = document.createElement('span');
+            text.textContent = `${name} (existing assignment)`;
+            label.append(checkbox, text);
+            optionsContainer.insertBefore(label, document.getElementById('assignedMembersNoResults'));
+        } else {
+            checkbox.checked = true;
+        }
+    });
+
+    document.getElementById('assignedMembersSearch').value = '';
+    filterAssignedMemberOptions();
+    updateAssignedMembers();
+    document.getElementById('assignedMembersDropdown').style.display = 'none';
+    document.getElementById('assignedMembersButton').setAttribute('aria-expanded', 'false');
 }
 
 function setSelectValue(id, val) {
@@ -534,6 +624,15 @@ function filterProjectTable() {
         row.style.display = text.indexOf(query) > -1 ? '' : 'none';
     });
 }
+
+document.addEventListener('click', function(event) {
+    const picker = document.getElementById('assignedMemberPicker');
+    if (picker && !picker.contains(event.target)) {
+        document.getElementById('assignedMembersDropdown').style.display = 'none';
+        document.getElementById('assignedMembersButton').setAttribute('aria-expanded', 'false');
+    }
+});
+filterAssignedMemberOptions();
 
 document.addEventListener('DOMContentLoaded', function() {
     loadProjects();

@@ -55,6 +55,15 @@ public class AppSystemSettingsController : ControllerBase
                 .Select(s => s.Value)
                 .ToListAsync();
 
+            var requirementTypes = await _db.RequirementTypeOptions
+                .OrderBy(r => r.Id)
+                .Select(r => r.Value)
+                .ToListAsync();
+            if (requirementTypes.Count == 0)
+            {
+                requirementTypes = new List<string> { "Material", "Service", "Product", "Price Quote", "Demo", "Other" };
+            }
+
             var users = await _db.Users
                 .OrderBy(u => u.Id)
                 .Select(u => new AppSettingsUserDto
@@ -87,6 +96,7 @@ public class AppSystemSettingsController : ControllerBase
             {
                 Statuses = statuses,
                 Sources = sources,
+                RequirementTypes = requirementTypes,
                 Users = users,
                 Taxes = taxes,
                 FollowUp = followUp
@@ -337,6 +347,122 @@ public class AppSystemSettingsController : ControllerBase
             _logger.LogError(ex, "Failed to delete lead source '{Source}'.", source);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 AppApiErrorResponse.Fail("An error occurred while deleting lead source."));
+        }
+    }
+
+    // =========================================================================
+    // 3.1 REQUIREMENT TYPES APIs
+    // =========================================================================
+
+    /// <summary>
+    /// GET /api/v1/app/settings/requirement-types
+    /// Retrieves all dynamic requirement types from settings.
+    /// </summary>
+    [HttpGet("requirement-types")]
+    public async Task<IActionResult> GetRequirementTypes()
+    {
+        try
+        {
+            var types = await _db.RequirementTypeOptions
+                .OrderBy(r => r.Id)
+                .Select(r => r.Value)
+                .ToListAsync();
+
+            if (types.Count == 0)
+            {
+                types = new List<string> { "Material", "Service", "Product", "Price Quote", "Demo", "Other" };
+            }
+
+            return Ok(AppApiResponse<List<string>>.Ok(types, "Requirement types retrieved successfully."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve requirement types.");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                AppApiErrorResponse.Fail("An error occurred while retrieving requirement types."));
+        }
+    }
+
+    /// <summary>
+    /// POST /api/v1/app/settings/requirement-types
+    /// Adds a new requirement type.
+    /// </summary>
+    [HttpPost("requirement-types")]
+    public async Task<IActionResult> CreateRequirementType([FromBody] SourceInputDto input)
+    {
+        try
+        {
+            var value = input?.GetEffectiveValue();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return BadRequest(AppApiErrorResponse.Fail("Requirement type is required."));
+            }
+
+            var exists = await _db.RequirementTypeOptions
+                .AnyAsync(r => r.Value.ToLower() == value.ToLower());
+
+            if (exists)
+            {
+                return Conflict(AppApiErrorResponse.Fail($"Requirement type '{value}' already exists."));
+            }
+
+            var option = new RequirementTypeOption { Value = value };
+            _db.RequirementTypeOptions.Add(option);
+            await _db.SaveChangesAsync();
+
+            return StatusCode(StatusCodes.Status201Created,
+                AppApiResponse<object>.Ok(new { id = option.Id, value = option.Value }, $"Requirement type '{value}' created successfully."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create requirement type.");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                AppApiErrorResponse.Fail("An error occurred while creating requirement type."));
+        }
+    }
+
+    /// <summary>
+    /// DELETE /api/v1/app/settings/requirement-types/{type}
+    /// Deletes a requirement type.
+    /// </summary>
+    [HttpDelete("requirement-types/{type}")]
+    public async Task<IActionResult> DeleteRequirementType(string type)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(type))
+            {
+                return BadRequest(AppApiErrorResponse.Fail("Requirement type identifier is required."));
+            }
+
+            type = type.Trim();
+            RequirementTypeOption? existing = null;
+
+            if (int.TryParse(type, out var id))
+            {
+                existing = await _db.RequirementTypeOptions.FirstOrDefaultAsync(r => r.Id == id);
+            }
+
+            if (existing == null)
+            {
+                existing = await _db.RequirementTypeOptions.FirstOrDefaultAsync(r => r.Value.ToLower() == type.ToLower());
+            }
+
+            if (existing == null)
+            {
+                return NotFound(AppApiErrorResponse.Fail($"Requirement type '{type}' not found."));
+            }
+
+            _db.RequirementTypeOptions.Remove(existing);
+            await _db.SaveChangesAsync();
+
+            return Ok(AppApiResponse.Ok($"Requirement type '{existing.Value}' deleted successfully."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete requirement type '{Type}'.", type);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                AppApiErrorResponse.Fail("An error occurred while deleting requirement type."));
         }
     }
 

@@ -76,7 +76,7 @@
                     }
                 }
 
-                @if (canViewModule("Estimation") || canViewModule("Quotation") || canViewModule("Proposal") || canViewModule("Invoice") || canViewModule("Payment"))
+                @if (canViewModule("Quotation") || canViewModule("Proposal") || canViewModule("Invoice") || canViewModule("Payment"))
                 {
                     <div class="sidebar-section-label">FINANCE</div>
                     <div class="sidebar-group @(financeActive ? "open" : "")">
@@ -85,12 +85,6 @@
                             <i class="bi bi-chevron-down sidebar-caret"></i>
                         </button>
                         <div class="sidebar-submenu">
-                            @if (canViewModule("Estimation"))
-                            {
-                                <a class="sidebar-sublink @(activePage == "FinanceEstimation" ? "active" : "")" asp-controller="Finance" asp-action="EstimationList">
-                                    <i class="bi bi-calculator"></i> Estimation
-                                </a>
-                            }
                             @if (canViewModule("Quotation"))
                             {
                                 <a class="sidebar-sublink @(activePage == "FinanceQuotation" ? "active" : "")" asp-controller="Finance" asp-action="QuotationList">
@@ -181,12 +175,15 @@
                     </div>
                 }
 
-                @if (isAdminPanel && (canViewModule("Settings") || canViewModule("Lead Status/Source") || canViewModule("Follow-up Settings") || canViewModule("Users & Roles")))
+                @if (isAdminPanel)
                 {
                     <div class="sidebar-section-label">SETTINGS</div>
-                    <a class="sidebar-link @(activePage == "Settings" ? "active" : "")" asp-controller="Settings" asp-action="Index">
-                        <i class="bi bi-gear"></i> Settings
-                    </a>
+                    @if (canViewModule("Settings") || canViewModule("Lead Status/Source") || canViewModule("Follow-up Settings") || canViewModule("Users & Roles"))
+                    {
+                        <a class="sidebar-link @(activePage == "Settings" ? "active" : "")" asp-controller="Settings" asp-action="Index">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                    }
                 }
             </nav>
 

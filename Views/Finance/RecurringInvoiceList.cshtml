@@ -494,7 +494,7 @@
                 opt.value = c.ClientName || c.CompanyName;
                 opt.dataset.name = c.ClientName || '';
                 opt.dataset.company = c.CompanyName || '';
-                opt.textContent = c.CompanyName ? `${c.CompanyName} (${c.ClientName})` : c.ClientName;
+                opt.textContent = c.ClientName || c.CompanyName;
                 sel.appendChild(opt);
             });
         } catch (e) {
@@ -516,7 +516,9 @@
         }
 
         try {
-            const res = await fetch(`/api/clients/${encodeURIComponent(client)}/projects`);
+            const selectedOpt = document.getElementById('modalRecClient').selectedOptions[0];
+            const projectLookupName = selectedOpt?.dataset.company || client;
+            const res = await fetch(`/api/clients/${encodeURIComponent(projectLookupName)}/projects`);
             if (!res.ok) throw new Error('Failed to load projects');
             recProjects = await res.json();
 
@@ -691,7 +693,7 @@
             MilestoneId: parseInt(document.getElementById('modalRecMilestone').value) || null,
             ProfileNumber: document.getElementById('modalProfNumber').value.trim(),
             ClientName: selectedOpt?.dataset.name || clientSel.value,
-            ClientCompany: selectedOpt?.dataset.company || clientSel.value,
+            ClientCompany: selectedOpt?.dataset.company || '',
             Frequency: document.getElementById('modalRecFreq').value,
             StartDate: document.getElementById('modalRecStartDate').value,
             NextInvoiceDate: document.getElementById('modalRecStartDate').value,

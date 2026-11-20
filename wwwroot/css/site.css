@@ -424,9 +424,13 @@ table.data-table tbody tr:last-child td{ border-bottom:none; }
   font-size: 13px;
   font-family: inherit;
   background: #fff;
-  color: var(--ink-800);
+  color: var(--ink-900, #101828);
   transition: border-color .15s ease, box-shadow .15s ease;
   box-sizing: border-box;
+}
+.req-select option {
+  color: var(--ink-900, #101828);
+  background-color: #fff;
 }
 .req-select:focus, .req-input:focus {
   outline: none;
@@ -441,6 +445,10 @@ table.data-table tbody tr:last-child td{ border-bottom:none; }
   font-size: 13px;
   font-weight: 500;
   box-sizing: border-box;
+}
+.req-quantity-input {
+  min-width: 95px;
+  text-align: center;
 }
 .req-file-label {
   display: inline-flex;

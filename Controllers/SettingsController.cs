@@ -48,11 +48,13 @@ public class SettingsController : Controller
 
         ViewData["Title"] = "Settings";
         ViewData["ActivePage"] = "Settings";
+        ViewData["IsAdminPanel"] = PermissionChecker.IsAdmin(User, PermissionChecker.GetCurrentUser(_db, User));
 
         var vm = new SettingsViewModel
         {
             Statuses = SettingsStore.Statuses,
             Sources = SettingsStore.Sources,
+            RequirementCategories = SettingsStore.RequirementCategories,
             Users = SettingsStore.Users,
             Taxes = SettingsStore.Taxes,
             FollowUp = SettingsStore.FollowUp
@@ -89,9 +91,9 @@ public class SettingsController : Controller
     [HttpPost]
     public IActionResult AddSource(string newSource)
     {
-        if (!CheckPermission("Lead Status/Source", "Create") && !CheckPermission("Lead Status/Source", "Edit"))
+        if (!IsAdminPanelUser())
         {
-            TempData["ErrorMessage"] = "Access Denied: You do not have permission to add lead sources.";
+            TempData["ErrorMessage"] = "Access Denied: Only administrators can manage lead sources.";
             return RedirectToFragment("lead-sources");
         }
 
@@ -102,14 +104,45 @@ public class SettingsController : Controller
     [HttpPost]
     public IActionResult RemoveSource(string source)
     {
-        if (!CheckPermission("Lead Status/Source", "Delete"))
+        if (!IsAdminPanelUser())
         {
-            TempData["ErrorMessage"] = "Access Denied: You do not have permission to remove lead sources.";
+            TempData["ErrorMessage"] = "Access Denied: Only administrators can manage lead sources.";
             return RedirectToFragment("lead-sources");
         }
 
         SettingsStore.RemoveSource(source);
         return RedirectToFragment("lead-sources");
+    }
+
+    [HttpPost]
+    public IActionResult AddRequirementCategory(string newCategory)
+    {
+        if (!IsAdminPanelUser())
+        {
+            TempData["ErrorMessage"] = "Access Denied: Only administrators can manage requirement categories.";
+            return RedirectToFragment("requirement-categories");
+        }
+
+        SettingsStore.AddRequirementCategory(newCategory);
+        return RedirectToFragment("requirement-categories");
+    }
+
+    [HttpPost]
+    public IActionResult RemoveRequirementCategory(string category)
+    {
+        if (!IsAdminPanelUser())
+        {
+            TempData["ErrorMessage"] = "Access Denied: Only administrators can manage requirement categories.";
+            return RedirectToFragment("requirement-categories");
+        }
+
+        SettingsStore.RemoveRequirementCategory(category);
+        return RedirectToFragment("requirement-categories");
+    }
+
+    private bool IsAdminPanelUser()
+    {
+        return PermissionChecker.IsAdmin(User, PermissionChecker.GetCurrentUser(_db, User));
     }
 
     [HttpPost]

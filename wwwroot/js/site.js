@@ -205,6 +205,21 @@ function toggleRequirementForm() {
 }
 
 // Dynamic Requirement Items in Table Format
+function createRequirementCategorySelect() {
+  const select = document.createElement('select');
+  select.name = 'category';
+  select.className = 'req-select';
+  select.required = true;
+  select.add(new Option('Select category', ''));
+
+  const optionsTemplate = document.getElementById('requirementCategoryOptions');
+  if (optionsTemplate) {
+    select.appendChild(optionsTemplate.content.cloneNode(true));
+  }
+
+  return select;
+}
+
 function addRequirementItem() {
   const tbody = document.getElementById('requirementItemsTbody');
   if (!tbody) return;
@@ -219,11 +234,9 @@ function addRequirementItem() {
     <td style="text-align:center;font-weight:700;color:var(--brand-700);vertical-align:middle;">
       <span class="req-sno-badge">1</span>
     </td>
+    <td data-requirement-category></td>
     <td>
-      <input type="text" name="category" class="req-input" placeholder="Category" />
-    </td>
-    <td>
-      <input type="text" name="items" class="req-input" placeholder="Item" />
+      <input type="text" name="items" class="req-input" maxlength="150" placeholder="Item" required />
     </td>
     <td>
       <input type="text" name="location" class="req-input" placeholder="Location" />
@@ -247,13 +260,22 @@ function addRequirementItem() {
       <input type="text" inputmode="decimal" name="w3" class="req-input req-dim-input" placeholder="W3" />
     </td>
     <td>
-      <input type="text" name="types" class="req-input" placeholder="Types" />
+      <input type="text" name="types" class="req-input" maxlength="150" placeholder="Types" />
     </td>
     <td>
-      <input type="text" name="topology" class="req-input" placeholder="Topology" />
+      <input type="text" name="topology" class="req-input" maxlength="150" placeholder="Topology" />
     </td>
     <td>
-      <input type="text" name="glass" class="req-input" placeholder="Glass" />
+      <input type="text" name="glass" class="req-input" maxlength="150" placeholder="Glass" />
+    </td>
+    <td>
+      <input type="number" min="1" step="1" name="quantity" class="req-input req-quantity-input" placeholder="1" value="1" />
+    </td>
+    <td>
+      <input type="number" min="0" step="any" name="areaCharge" class="req-input" placeholder="Area (Sq.Ft)" />
+    </td>
+    <td>
+      <input type="number" min="0" step="any" name="amount" class="req-input" placeholder="Amount" />
     </td>
     <td style="text-align:center;vertical-align:middle;">
       <div class="req-img-actions-wrap">
@@ -288,6 +310,7 @@ function addRequirementItem() {
   `;
 
   tbody.appendChild(row);
+  row.querySelector('[data-requirement-category]').appendChild(createRequirementCategorySelect());
   renumberRequirementItems();
 }
 
@@ -591,12 +614,16 @@ window.closeReqZoomModal = closeReqZoomModal;
 
 // Switches the visible Finance sub-tab (Estimation | Quotation | Proposal). Independent of switchLeadTab.
 function switchFinanceSubTab(name) {
-  if (!name) return;
-  document.querySelectorAll('.fin-subtab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-subtab') === name);
+  const buttons = Array.from(document.querySelectorAll('.fin-subtab-btn'));
+  const selectedButton = buttons.find(btn => btn.getAttribute('data-subtab') === name) || buttons[0];
+  if (!selectedButton) return;
+
+  const selectedName = selectedButton.getAttribute('data-subtab');
+  buttons.forEach(btn => {
+    btn.classList.toggle('active', btn === selectedButton);
   });
   document.querySelectorAll('.fin-subpanel').forEach(panel => {
-    panel.classList.toggle('active', panel.id === `finsub-${name}`);
+    panel.classList.toggle('active', panel.id === `finsub-${selectedName}`);
   });
 }
 

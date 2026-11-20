@@ -130,6 +130,9 @@ public class AppFullSettingsDto
     [JsonPropertyName("sources")]
     public List<string> Sources { get; set; } = new();
 
+    [JsonPropertyName("requirementTypes")]
+    public List<string> RequirementTypes { get; set; } = new();
+
     [JsonPropertyName("users")]
     public List<AppSettingsUserDto> Users { get; set; } = new();
 

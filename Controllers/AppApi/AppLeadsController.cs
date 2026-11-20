@@ -26,17 +26,20 @@ public class AppLeadsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ILogger<AppLeadsController> _logger;
     private readonly IAuditLogService _auditLogService;
+    private readonly IMasterDataService _masterDataService;
     private readonly ITokenService? _tokenService;
 
     public AppLeadsController(
         AppDbContext db,
         ILogger<AppLeadsController> logger,
         IAuditLogService auditLogService,
+        IMasterDataService masterDataService,
         ITokenService? tokenService = null)
     {
         _db = db;
         _logger = logger;
         _auditLogService = auditLogService;
+        _masterDataService = masterDataService;
         _tokenService = tokenService;
     }
 
@@ -1271,13 +1274,37 @@ public class AppLeadsController : ControllerBase
                     var typ = T(r.Types);
                     var gls = T(r.Glass);
                     var top = T(r.Topology);
+                    var qty = T(r.Quantity);
+                    var areaCharge = T(r.AreaCharge);
+                    var amount = T(r.Amount);
                     var hasImage = !string.IsNullOrWhiteSpace(r.ImageBase64);
+                    var hasMasterIds = r.CategoryId.HasValue || r.ItemId.HasValue || r.TypeId.HasValue ||
+                                       r.TopologyId.HasValue || r.GlassId.HasValue;
 
                     // Skip completely empty rows
-                    if (new[] { cat, itm, loc, h1, h2, h3, w1, w2, w3, typ, gls, top }
-                            .All(string.IsNullOrWhiteSpace) && !hasImage)
+                    if (new[] { cat, itm, loc, h1, h2, h3, w1, w2, w3, typ, gls, top, qty, areaCharge, amount }
+                            .All(string.IsNullOrWhiteSpace) && !hasImage && !hasMasterIds)
                     {
                         continue;
+                    }
+
+                    if (hasMasterIds)
+                    {
+                        var resolution = await _masterDataService.ResolveRequirementSelectionsAsync(
+                            new[]
+                            {
+                                new RequirementMasterSelectionIds(
+                                    r.CategoryId, r.ItemId, r.TypeId, r.TopologyId, r.GlassId)
+                            },
+                            HttpContext.RequestAborted);
+                        if (!resolution.IsValid)
+                            return BadRequest(AppApiErrorResponse.Fail(resolution.Error ?? "Invalid requirement master selection."));
+
+                        cat = resolution.Items[0].Category;
+                        itm = resolution.Items[0].Item;
+                        typ = resolution.Items[0].Type;
+                        top = resolution.Items[0].Topology;
+                        gls = resolution.Items[0].Glass;
                     }
 
                     string itemTitle =
@@ -1320,7 +1347,9 @@ public class AppLeadsController : ControllerBase
 
                         // Same params as web panel
                         Category = cat,
+                        CategoryId = r.CategoryId,
                         Item = itm,
+                        ItemId = r.ItemId,
                         Location = loc,
                         H1 = h1,
                         H2 = h2,
@@ -1328,14 +1357,19 @@ public class AppLeadsController : ControllerBase
                         W1 = w1,
                         W2 = w2,
                         W3 = w3,
+                        Quantity = string.IsNullOrWhiteSpace(qty) ? "1" : qty,
+                        AreaCharge = areaCharge,
+                        Amount = amount,
                         Types = typ,
+                        TypeId = r.TypeId,
                         Topology = top,
+                        TopologyId = r.TopologyId,
                         Glass = gls,
+                        GlassId = r.GlassId,
 
                         // Legacy fields
                         ItemName = itm,
                         RequirementType = cat,
-                        Quantity = "1",
                         Details = string.Join(" | ", descParts),
                         Remarks = mainDescription
                     };
@@ -1370,6 +1404,8 @@ public class AppLeadsController : ControllerBase
                 RequirementType = input?.RequirementType?.Trim() ?? "",
                 ItemName = input?.ItemName?.Trim() ?? (input?.Title?.Trim() ?? ""),
                 Quantity = input?.Quantity?.Trim() ?? "1",
+                AreaCharge = input?.AreaCharge?.Trim() ?? "",
+                Amount = input?.Amount?.Trim() ?? "",
                 Details = input?.Details?.Trim() ?? "",
                 Remarks = input?.Remarks?.Trim() ?? ""
             };

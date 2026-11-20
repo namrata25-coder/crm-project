@@ -299,11 +299,15 @@ public class InvoicesApiController : ControllerBase
                 ? input.ClientName.Trim()
                 : (project.ClientName ?? "");
 
+            var leads = await _db.Leads.AsNoTracking().ToListAsync();
+            var selectedLead = !string.IsNullOrWhiteSpace(input.ClientId)
+                ? leads.FirstOrDefault(l => l.LeadId == input.ClientId.Trim())
+                : null;
             var clientCompany = !string.IsNullOrWhiteSpace(input.ClientCompany)
                 ? input.ClientCompany.Trim()
-                : (!string.IsNullOrWhiteSpace(project.ClientCompany) ? project.ClientCompany : clientName);
-
-            var leads = await _db.Leads.AsNoTracking().ToListAsync();
+                : selectedLead != null
+                    ? selectedLead.CompanyName ?? ""
+                    : (!string.IsNullOrWhiteSpace(project.ClientCompany) ? project.ClientCompany : "");
 
             var clientId = !string.IsNullOrWhiteSpace(input.ClientId)
                 ? input.ClientId.Trim()
