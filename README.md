@@ -116,7 +116,7 @@ versa). CORS is enabled for all origins in `Program.cs` so any frontend
 | DELETE | `/api/leads/{id}` | Delete a lead |
 | POST | `/api/leads/{id}/calls` | Log a call (`AddCallRequest`) |
 | POST | `/api/leads/{id}/followups` | Log a follow-up (`AddFollowUpRequest`) |
-| POST | `/api/leads/{id}/visits/upload` | Log a visit with up to 10 photos (`multipart/form-data`, bearer token required) |
+| POST | `/api/leads/{id}/visits/upload` | Log a visit with up to 10 photos (`multipart/form-data`, bearer token or cookie session with anti-forgery token) |
 | POST | `/api/leads/{id}/requirements` | Add a requirement, JSON only, no image (`AddRequirementRequest`) |
 | POST | `/api/leads/{id}/requirements/upload` | Add a requirement with an optional image (`multipart/form-data`) |
 | POST | `/api/leads/{id}/assign` | Assign / re-assign the lead (`AssignLeadRequest`) |

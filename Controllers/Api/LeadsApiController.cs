@@ -2,7 +2,7 @@ using CrmLeadManagement.Models;
 using CrmLeadManagement.Models.Dtos;
 using CrmLeadManagement.Security;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,11 +22,13 @@ public class LeadsApiController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ILogger<LeadsApiController> _logger;
+    private readonly IAntiforgery _antiforgery;
 
-    public LeadsApiController(AppDbContext db, ILogger<LeadsApiController> logger)
+    public LeadsApiController(AppDbContext db, ILogger<LeadsApiController> logger, IAntiforgery antiforgery)
     {
         _db = db;
         _logger = logger;
+        _antiforgery = antiforgery;
     }
 
     /// <summary>
@@ -472,24 +474,23 @@ public class LeadsApiController : ControllerBase
     /// <param name="images">Visit photos sent as repeated "images" form fields.</param>
     /// <response code="200">Visit and photos were saved.</response>
     /// <response code="400">Required visit fields or photo constraints are invalid.</response>
-    /// <response code="401">A valid bearer token is required.</response>
+    /// <response code="401">Authentication is required.</response>
     /// <response code="404">The lead does not exist.</response>
     [HttpPost("{id}/visits/upload")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(30 * 1024 * 1024)]
-    [AllowAnonymous]
     public async Task<IActionResult> AddVisitWithImages(
         string id,
         [FromForm] AddVisitRequest request,
         [FromForm] List<IFormFile>? images)
     {
-        var bearerResult = await HttpContext.AuthenticateAsync(BearerTokenAuthenticationHandler.SchemeName);
-        if (!bearerResult.Succeeded || bearerResult.Principal is null)
+        var hasBearerIdentity = User.Identities.Any(identity =>
+            identity.IsAuthenticated &&
+            string.Equals(identity.AuthenticationType, BearerTokenAuthenticationHandler.SchemeName, StringComparison.Ordinal));
+        if (!hasBearerIdentity && !await _antiforgery.IsRequestValidAsync(HttpContext))
         {
-            return Challenge(BearerTokenAuthenticationHandler.SchemeName);
+            return BadRequest(new ApiError { Message = "A valid anti-forgery token is required for cookie-authenticated requests." });
         }
-
-        HttpContext.User = bearerResult.Principal;
 
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
