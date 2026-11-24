@@ -82,6 +82,7 @@ public class FollowUpEntry
     public string? AssignedEmployee { get; set; } = "";
     public string? Status { get; set; } = ""; // Pending / Completed / Rescheduled
     public string? Remarks { get; set; } = "";
+    public DateTime? NextFollowUpDate { get; set; }
 }
 
 public class RequirementEntry

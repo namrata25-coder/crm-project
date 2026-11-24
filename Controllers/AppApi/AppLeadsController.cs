@@ -607,9 +607,17 @@ public class AppLeadsController : ControllerBase
                     AppApiErrorResponse.Fail("You do not have permission to create leads."));
             }
 
-            if (input == null || string.IsNullOrWhiteSpace(input.LeadName))
+            if (input == null)
             {
-                return BadRequest(AppApiErrorResponse.Fail("Lead name is required."));
+                return BadRequest(AppApiErrorResponse.Fail("Mobile number and email are required."));
+            }
+            if (string.IsNullOrWhiteSpace(input.MobileNumber))
+            {
+                return BadRequest(AppApiErrorResponse.Fail("Mobile number is required."));
+            }
+            if (string.IsNullOrWhiteSpace(input.Email))
+            {
+                return BadRequest(AppApiErrorResponse.Fail("Email is required."));
             }
 
             if (isSalesExec && string.IsNullOrWhiteSpace(input.AssignedTo))
@@ -709,9 +717,17 @@ public class AppLeadsController : ControllerBase
                     AppApiErrorResponse.Fail("You do not have permission to update this lead."));
             }
 
-            if (input == null || string.IsNullOrWhiteSpace(input.LeadName))
+            if (input == null)
             {
-                return BadRequest(AppApiErrorResponse.Fail("Lead name is required."));
+                return BadRequest(AppApiErrorResponse.Fail("Mobile number and email are required."));
+            }
+            if (string.IsNullOrWhiteSpace(input.MobileNumber))
+            {
+                return BadRequest(AppApiErrorResponse.Fail("Mobile number is required."));
+            }
+            if (string.IsNullOrWhiteSpace(input.Email))
+            {
+                return BadRequest(AppApiErrorResponse.Fail("Email is required."));
             }
 
             var previousAssignedTo = existing.AssignedTo;
@@ -1001,11 +1017,12 @@ public class AppLeadsController : ControllerBase
                 Status = !string.IsNullOrWhiteSpace(input?.Status) ? input.Status.Trim() : "Scheduled",
                 AssignedEmployee = !string.IsNullOrWhiteSpace(input?.AssignedEmployee) ? input.AssignedEmployee.Trim() :
                                    (!string.IsNullOrWhiteSpace(input?.Employee) ? input.Employee.Trim() : (lead.AssignedTo ?? currentUser?.Name ?? "Staff")),
-                Remarks = remarksText.Trim()
+                Remarks = remarksText.Trim(),
+                NextFollowUpDate = DateTime.TryParse(input?.NextFollowUpDate, out var nextDate) ? nextDate : null
             };
 
             lead.FollowUps.Add(entry);
-            lead.FollowUpDate = entry.FollowUpDate;
+            lead.FollowUpDate = entry.NextFollowUpDate?.ToString("yyyy-MM-dd") ?? entry.FollowUpDate;
             await _db.SaveChangesAsync();
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? currentUser?.Email ?? "system";

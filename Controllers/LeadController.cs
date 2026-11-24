@@ -154,9 +154,9 @@ public class LeadController : Controller
             return RedirectToReturnUrl(returnUrl, "List");
         }
 
-        if (string.IsNullOrWhiteSpace(Input.LeadName) || string.IsNullOrWhiteSpace(Input.MobileNumber))
+        if (string.IsNullOrWhiteSpace(Input.MobileNumber) || string.IsNullOrWhiteSpace(Input.Email))
         {
-            TempData["ErrorMessage"] = "Lead name and mobile number are required.";
+            TempData["ErrorMessage"] = "Mobile number and email are required.";
             return RedirectToReturnUrl(returnUrl, "List");
         }
 
@@ -219,7 +219,7 @@ public class LeadController : Controller
 
     /// <summary>Logs a new follow-up against the lead and returns to the Follow-up tab.</summary>
     [HttpPost]
-    public IActionResult AddFollowUp(string leadId, string followUpDate, string followUpTime, string status, string? remarks, string? followUpType = "Call")
+    public IActionResult AddFollowUp(string leadId, string followUpDate, string followUpTime, string status, string? remarks, string? followUpType = "Call", string? nextFollowUpDate = null)
     {
         var lead = LeadStore.GetById(leadId);
         if (lead is null) return RedirectToAction("List");
@@ -233,11 +233,12 @@ public class LeadController : Controller
                 FollowUpType = string.IsNullOrWhiteSpace(followUpType) ? "Call" : followUpType,
                 AssignedEmployee = lead.AssignedTo,
                 Status = status,
-                Remarks = remarks ?? ""
+                Remarks = remarks ?? "",
+                NextFollowUpDate = DateTime.TryParse(nextFollowUpDate, out var nextDate) ? nextDate : null
             });
 
             // Keep the lead's "next follow-up" quick-glance field in sync with the latest entry.
-            lead.FollowUpDate = followUpDate;
+            lead.FollowUpDate = !string.IsNullOrWhiteSpace(nextFollowUpDate) ? nextFollowUpDate : followUpDate;
             DbAccessor.Db.SaveChanges();
         }
 

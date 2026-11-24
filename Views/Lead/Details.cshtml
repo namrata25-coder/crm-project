@@ -164,6 +164,7 @@
                     <div class="info-item"><div class="lbl">FOLLOW-UP TIME</div><div class="val" id="latestFollowUpTime">@(latestFollowUp?.FollowUpTime ?? "—")</div></div>
                     <div class="info-item"><div class="lbl">FOLLOW-UP TYPE</div><div class="val" id="latestFollowUpType">@(string.IsNullOrWhiteSpace(latestFollowUp?.FollowUpType) ? "Call" : latestFollowUp.FollowUpType)</div></div>
                     <div class="info-item"><div class="lbl">STATUS</div><div class="val" id="latestFollowUpStatus">@Html.Raw(FollowUpStatusBadge(latestFollowUp?.Status))</div></div>
+                    <div class="info-item"><div class="lbl">NEXT FOLLOW-UP</div><div class="val" id="latestNextFollowUp">@(latestFollowUp?.NextFollowUpDate?.ToString("yyyy-MM-dd") ?? "—")</div></div>
                     <div class="info-item full"><div class="lbl">REMARKS</div><div class="val muted" id="latestFollowUpRemarks">@(string.IsNullOrWhiteSpace(latestFollowUp?.Remarks) ? "—" : latestFollowUp.Remarks)</div></div>
                 </div>
             </div>
@@ -180,6 +181,7 @@
                                 <th>Follow-up Time</th>
                                 <th>Type</th>
                                 <th>Status</th>
+                                <th>Next Follow-up</th>
                                 <th>Remarks</th>
                             </tr>
                         </thead>
@@ -193,6 +195,7 @@
                                         <td>@f.FollowUpTime</td>
                                         <td>@(string.IsNullOrWhiteSpace(f.FollowUpType) ? "Call" : f.FollowUpType)</td>
                                         <td>@Html.Raw(FollowUpStatusBadge(f.Status))</td>
+                                        <td>@(f.NextFollowUpDate?.ToString("yyyy-MM-dd") ?? "—")</td>
                                         <td style="max-width:320px;">@(string.IsNullOrWhiteSpace(f.Remarks) ? "—" : f.Remarks)</td>
                                     </tr>
                                 }
@@ -1109,6 +1112,10 @@
                             }
                         </select>
                     </div>
+                    <div class="form-field">
+                        <label for="addFollowUpNextDate">Next Follow-up</label>
+                        <input type="date" id="addFollowUpNextDate" name="nextFollowUpDate" />
+                    </div>
                     <div class="form-field full">
                         <label for="addFollowUpRemarks">Remarks</label>
                         <textarea id="addFollowUpRemarks" name="remarks" rows="3" placeholder="Enter follow-up agenda, discussion notes, or next steps..."></textarea>
@@ -1517,6 +1524,9 @@
             var statusSelect = document.getElementById('addFollowUpStatus');
             if (statusSelect) statusSelect.value = 'Pending';
 
+            var nextDateInput = document.getElementById('addFollowUpNextDate');
+            if (nextDateInput) nextDateInput.value = '';
+
             var errBanner = document.getElementById('addFollowUpErrorBanner');
             if (errBanner) {
                 errBanner.style.display = 'none';
@@ -1548,6 +1558,7 @@
             var followUpTime = document.getElementById('addFollowUpTime').value.trim();
             var followUpType = document.getElementById('addFollowUpType').value;
             var status = document.getElementById('addFollowUpStatus').value;
+            var nextFollowUpDate = document.getElementById('addFollowUpNextDate').value;
             var remarks = document.getElementById('addFollowUpRemarks').value.trim();
 
             var errBanner = document.getElementById('addFollowUpErrorBanner');
@@ -1569,6 +1580,7 @@
                 FollowUpTime: followUpTime,
                 FollowUpType: followUpType || 'Call',
                 Status: status,
+                NextFollowUpDate: nextFollowUpDate,
                 Remarks: remarks
             };
 
@@ -1607,12 +1619,14 @@
                 var latestTimeEl = document.getElementById('latestFollowUpTime');
                 var latestTypeEl = document.getElementById('latestFollowUpType');
                 var latestStatusEl = document.getElementById('latestFollowUpStatus');
+                var latestNextFollowUpEl = document.getElementById('latestNextFollowUp');
                 var latestRemarksEl = document.getElementById('latestFollowUpRemarks');
 
                 if (latestDateEl) latestDateEl.textContent = followUpDate;
                 if (latestTimeEl) latestTimeEl.textContent = followUpTime;
                 if (latestTypeEl) latestTypeEl.textContent = followUpType || 'Call';
                 if (latestStatusEl) latestStatusEl.innerHTML = badgeHtml;
+                if (latestNextFollowUpEl) latestNextFollowUpEl.textContent = nextFollowUpDate || '—';
                 if (latestRemarksEl) latestRemarksEl.textContent = remarks || '—';
 
                 // Hide empty state and show summary / history sections
@@ -1634,6 +1648,7 @@
                         '<td>' + escapeHtml(followUpTime) + '</td>' +
                         '<td>' + escapeHtml(followUpType || 'Call') + '</td>' +
                         '<td>' + badgeHtml + '</td>' +
+                        '<td>' + escapeHtml(nextFollowUpDate || '—') + '</td>' +
                         '<td style="max-width:320px;">' + escapeHtml(remarks || '—') + '</td>';
                     tbody.insertBefore(tr, tbody.firstChild);
                 }

@@ -326,6 +326,7 @@ public static class DatabaseSchemaSync
             ""AssignedEmployee"" text,
             ""Status"" text,
             ""Remarks"" text,
+            ""NextFollowUpDate"" timestamp with time zone,
             CONSTRAINT ""PK_FollowUpEntry"" PRIMARY KEY (""LeadId_FK"", ""Id""),
             CONSTRAINT ""FK_FollowUpEntry_Leads_LeadId_FK"" FOREIGN KEY (""LeadId_FK"") REFERENCES ""Leads"" (""Id"") ON DELETE CASCADE
         );
@@ -752,6 +753,7 @@ public static class DatabaseSchemaSync
         ALTER TABLE ""FollowUpEntry"" ADD COLUMN IF NOT EXISTS ""AssignedEmployee"" text;
         ALTER TABLE ""FollowUpEntry"" ADD COLUMN IF NOT EXISTS ""Status"" text;
         ALTER TABLE ""FollowUpEntry"" ADD COLUMN IF NOT EXISTS ""Remarks"" text;
+        ALTER TABLE ""FollowUpEntry"" ADD COLUMN IF NOT EXISTS ""NextFollowUpDate"" timestamp with time zone;
 
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""Title"" text;
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""Description"" text;

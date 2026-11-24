@@ -116,9 +116,21 @@ public class WorkController : Controller
 
     private List<string> GetEmployeesList()
     {
-        var dbUsers = _db.Users.Where(u => !string.IsNullOrWhiteSpace(u.Name)).Select(u => u.Name!).ToList();
-        if (dbUsers.Any()) return dbUsers.Distinct().OrderBy(n => n).ToList();
-        return SettingsStore.Employees;
+        var dbUsers = _db.Users
+            .AsEnumerable()
+            .Where(u => !u.IsAdminAccount && !string.IsNullOrWhiteSpace(u.Name))
+            .Select(u => u.Name!.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
+        if (dbUsers.Any()) return dbUsers;
+        return SettingsStore.Employees
+            .Where(name => !string.Equals(name?.Trim(), "Administrator", StringComparison.OrdinalIgnoreCase))
+            .Where(name => !string.Equals(name?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
     }
 
     private List<string> GetProjectManagersList()
@@ -127,6 +139,7 @@ public class WorkController : Controller
             .Where(u => !string.IsNullOrWhiteSpace(u.Name) && u.Role != null)
             .AsEnumerable()
             .Where(u => string.Equals(u.Role?.Trim(), "Project Manager", StringComparison.OrdinalIgnoreCase))
+            .Where(u => !u.IsAdminAccount)
             .Select(u => u.Name!.Trim())
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -139,8 +152,9 @@ public class WorkController : Controller
         return _db.Users
             .AsNoTracking()
             .Where(u => !string.IsNullOrWhiteSpace(u.Name))
-            .Select(u => u.Name!)
             .AsEnumerable()
+            .Where(u => !u.IsAdminAccount)
+            .Select(u => u.Name!)
             .Select(name => name.Trim())
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)

@@ -132,16 +132,16 @@
 
                     <div class="form-field">
                         <label>Client Name</label>
-                        <input type="text" name="clientName" id="fClientName" placeholder="Client or contact name" list="clientsDatalist"/>
-                        <datalist id="clientsDatalist">
+                        <select name="clientName" id="fClientName" onchange="updateClientCompany()">
+                            <option value="">-- Select Client Name --</option>
                             @if (clients != null)
                             {
                                 foreach (var c in clients)
                                 {
-                                    <option value="@c.LeadName">@c.CompanyName</option>
+                                    <option value="@c.LeadName" data-company="@c.CompanyName">@c.LeadName</option>
                                 }
                             }
-                        </datalist>
+                        </select>
                     </div>
 
                     <div class="form-field">
@@ -501,8 +501,7 @@ async function handleDeleteProject(id, projectName) {
 function openAddProjectModal() {
     document.getElementById('projectId').value = 0;
     document.getElementById('fProjectName').value = '';
-    document.getElementById('fClientName').value = '';
-    document.getElementById('fClientCompany').value = '';
+    setProjectClient('', '');
     setSelectValue('fProjectType', 'Direct Project');
     document.getElementById('fDescription').value = '';
     document.getElementById('fStartDate').value = new Date().toISOString().split('T')[0];
@@ -526,8 +525,7 @@ function openEditProjectModalById(id) {
 
     document.getElementById('projectId').value = id;
     document.getElementById('fProjectName').value = p.ProjectName || p.projectName || '';
-    document.getElementById('fClientName').value = p.ClientName || p.clientName || '';
-    document.getElementById('fClientCompany').value = p.ClientCompany || p.clientCompany || '';
+    setProjectClient(p.ClientName || p.clientName || '', p.ClientCompany || p.clientCompany || '');
     setSelectValue('fProjectType', p.ProjectType || p.projectType || 'Direct Project');
     document.getElementById('fDescription').value = p.Description || p.description || '';
     document.getElementById('fStartDate').value = p.StartDate || p.startDate || '';
@@ -614,6 +612,36 @@ function setSelectValue(id, val) {
         if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
     }
     if (sel.options.length > 0) sel.selectedIndex = 0;
+}
+
+function updateClientCompany() {
+    var select = document.getElementById('fClientName');
+    var selected = select.options[select.selectedIndex];
+    document.getElementById('fClientCompany').value =
+        selected && selected.dataset.company ? selected.dataset.company : '';
+}
+
+function setProjectClient(clientName, clientCompany) {
+    var select = document.getElementById('fClientName');
+    if (select) {
+        Array.from(select.options).forEach(function(option) {
+            if (option.dataset.legacyClient === 'true') option.remove();
+        });
+    }
+    if (select && clientName) {
+        var exists = Array.from(select.options).some(option =>
+            option.value.toLowerCase() === clientName.toLowerCase());
+        if (!exists) {
+            var option = document.createElement('option');
+            option.value = clientName;
+            option.textContent = clientName;
+            option.dataset.company = clientCompany || '';
+            option.dataset.legacyClient = 'true';
+            select.appendChild(option);
+        }
+    }
+    setSelectValue('fClientName', clientName || '');
+    document.getElementById('fClientCompany').value = clientCompany || '';
 }
 
 function filterProjectTable() {

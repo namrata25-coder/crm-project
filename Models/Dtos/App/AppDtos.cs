@@ -322,6 +322,9 @@ public class AppFollowUpInputDto
     [JsonPropertyName("followUpDate")]
     public string? FollowUpDate { get; set; }
 
+    [JsonPropertyName("nextFollowUpDate")]
+    public string? NextFollowUpDate { get; set; }
+
     [JsonPropertyName("followUpTime")]
     public string? FollowUpTime { get; set; }
 

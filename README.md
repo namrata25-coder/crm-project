@@ -116,9 +116,55 @@ versa). CORS is enabled for all origins in `Program.cs` so any frontend
 | DELETE | `/api/leads/{id}` | Delete a lead |
 | POST | `/api/leads/{id}/calls` | Log a call (`AddCallRequest`) |
 | POST | `/api/leads/{id}/followups` | Log a follow-up (`AddFollowUpRequest`) |
+| POST | `/api/leads/{id}/visits/upload` | Log a visit with up to 10 photos (`multipart/form-data`, bearer token required) |
 | POST | `/api/leads/{id}/requirements` | Add a requirement, JSON only, no image (`AddRequirementRequest`) |
 | POST | `/api/leads/{id}/requirements/upload` | Add a requirement with an optional image (`multipart/form-data`) |
 | POST | `/api/leads/{id}/assign` | Assign / re-assign the lead (`AssignLeadRequest`) |
+
+#### Upload a visit with multiple photos
+
+Send the visit fields and each photo as multipart form data. Use the same `images`
+field name once per photo. Do not manually set the multipart `Content-Type`; the
+client must add its boundary.
+
+```bash
+curl -X POST "http://localhost:5000/api/leads/10/visits/upload" \
+  -H "Authorization: Bearer <your_access_token>" \
+  -H "Accept: application/json" \
+  -F "visitDate=2026-11-24" \
+  -F "visitTime=11:30" \
+  -F "visitLocation=Indore" \
+  -F "outcome=Interested" \
+  -F "conversation=Met the client" \
+  -F "remarks=Follow up next week" \
+  -F "images=@photo1.jpg" \
+  -F "images=@photo2.png"
+```
+
+`visitDate`, `visitTime`, and `visitLocation` are required. Photos are optional;
+allowed formats are JPG, PNG, GIF, and WEBP, up to 10 photos, 10 MB per photo,
+and 25 MB total.
+
+On success the response is `200 OK` with `Content-Type: application/json`:
+
+Abbreviated example (the actual response also contains the full updated `lead`):
+
+```json
+{
+  "success": true,
+  "message": "Visit saved successfully",
+  "leadId": "10",
+  "visit": {
+    "VisitDate": "2026-11-24",
+    "VisitTime": "11:30",
+    "VisitLocation": "Indore",
+    "ImagePathsJson": "[\"/uploads/visits/<generated-file-1>.jpg\",\"/uploads/visits/<generated-file-2>.png\"]"
+  }
+}
+```
+
+The actual `visit` also includes its ID and other visit fields. `ImagePathsJson`
+is a string containing the JSON array of stored image URLs.
 
 Example — create a lead (requires Bearer token or session cookie; unauthenticated requests return 401 Unauthorized):
 

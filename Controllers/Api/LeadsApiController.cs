@@ -2,6 +2,7 @@ using CrmLeadManagement.Models;
 using CrmLeadManagement.Models.Dtos;
 using CrmLeadManagement.Security;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -257,10 +258,10 @@ public class LeadsApiController : ControllerBase
     [HttpPost("create")]
     public ActionResult<Lead> Create([FromBody] LeadInputModel input)
     {
-        if (string.IsNullOrWhiteSpace(input.LeadName))
-            return BadRequest(new ApiError { Message = "LeadName is required." });
         if (string.IsNullOrWhiteSpace(input.MobileNumber))
             return BadRequest(new ApiError { Message = "MobileNumber is required." });
+        if (string.IsNullOrWhiteSpace(input.Email))
+            return BadRequest(new ApiError { Message = "Email is required." });
 
         // Ignore any client-supplied LeadId on create; the store always assigns the next id.
         input.LeadId = "";
@@ -274,10 +275,10 @@ public class LeadsApiController : ControllerBase
     {
         if (LeadStore.GetById(id) is null)
             return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
-        if (string.IsNullOrWhiteSpace(input.LeadName))
-            return BadRequest(new ApiError { Message = "LeadName is required." });
         if (string.IsNullOrWhiteSpace(input.MobileNumber))
             return BadRequest(new ApiError { Message = "MobileNumber is required." });
+        if (string.IsNullOrWhiteSpace(input.Email))
+            return BadRequest(new ApiError { Message = "Email is required." });
 
         input.LeadId = id;
         LeadStore.UpdateLead(input.ToLead());
@@ -376,6 +377,7 @@ public class LeadsApiController : ControllerBase
         var followUpDate = !string.IsNullOrWhiteSpace(request?.FollowUpDate) ? request.FollowUpDate.Trim() : today;
         var followUpTime = !string.IsNullOrWhiteSpace(request?.FollowUpTime) ? request.FollowUpTime.Trim() : nowTime;
         var status = !string.IsNullOrWhiteSpace(request?.Status) ? request.Status.Trim() : "Scheduled";
+        DateTime? nextFollowUpDate = DateTime.TryParse(request?.NextFollowUpDate, out var parsedNextDate) ? parsedNextDate : null;
 
         var newFollowUp = new FollowUpEntry
         {
@@ -384,13 +386,14 @@ public class LeadsApiController : ControllerBase
             FollowUpType = string.IsNullOrWhiteSpace(request?.FollowUpType) ? "Call" : request.FollowUpType,
             AssignedEmployee = lead.AssignedTo,
             Status = status,
-            Remarks = request?.Remarks ?? ""
+            Remarks = request?.Remarks ?? "",
+            NextFollowUpDate = nextFollowUpDate
         };
 
         lead.FollowUps.Add(newFollowUp);
 
         // Keep the lead's "next follow-up" quick-glance field in sync with the latest entry.
-        lead.FollowUpDate = followUpDate;
+        lead.FollowUpDate = nextFollowUpDate?.ToString("yyyy-MM-dd") ?? followUpDate;
 
         if (!await TrySaveAsync($"add follow-up for lead '{id}'"))
         {
@@ -460,16 +463,34 @@ public class LeadsApiController : ControllerBase
         });
     }
 
-    // POST /api/leads/{id}/visits/upload (multipart/form-data, with optional visit photos)
+    /// <summary>
+    /// Records a visit and optionally stores up to 10 photos. Send each photo as a
+    /// separate multipart form part named "images".
+    /// </summary>
+    /// <param name="id">Lead ID.</param>
+    /// <param name="request">Visit fields sent as multipart form fields.</param>
+    /// <param name="images">Visit photos sent as repeated "images" form fields.</param>
+    /// <response code="200">Visit and photos were saved.</response>
+    /// <response code="400">Required visit fields or photo constraints are invalid.</response>
+    /// <response code="401">A valid bearer token is required.</response>
+    /// <response code="404">The lead does not exist.</response>
     [HttpPost("{id}/visits/upload")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(30 * 1024 * 1024)]
-    [ValidateAntiForgeryToken]
+    [AllowAnonymous]
     public async Task<IActionResult> AddVisitWithImages(
         string id,
         [FromForm] AddVisitRequest request,
         [FromForm] List<IFormFile>? images)
     {
+        var bearerResult = await HttpContext.AuthenticateAsync(BearerTokenAuthenticationHandler.SchemeName);
+        if (!bearerResult.Succeeded || bearerResult.Principal is null)
+        {
+            return Challenge(BearerTokenAuthenticationHandler.SchemeName);
+        }
+
+        HttpContext.User = bearerResult.Principal;
+
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
 

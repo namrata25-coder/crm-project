@@ -27,6 +27,7 @@ public class AddFollowUpRequest
     public string FollowUpTime { get; set; } = "";
     public string FollowUpType { get; set; } = "Call";
     public string Status { get; set; } = "";
+    public string? NextFollowUpDate { get; set; }
     public string? Remarks { get; set; }
 }
 
