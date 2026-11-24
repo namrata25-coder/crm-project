@@ -684,51 +684,103 @@ public class LeadsApiController : ControllerBase
         });
     }
 
-    // POST /api/leads/{id}/requirements/upload   (multipart/form-data, with an optional image file)
+    // POST /api/leads/{id}/requirements/upload (multipart/form-data, with up to 10 images)
     [HttpPost("{id}/requirements/upload")]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<Lead>> AddRequirementWithImage(string id, [FromForm] string title, [FromForm] string? description,
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    public async Task<ActionResult<Lead>> AddRequirementWithImages(string id, [FromForm] string title, [FromForm] string? description,
         [FromForm] string priority, [FromForm] string? expectedDate, [FromForm] string? budget, [FromForm] string status,
-        IFormFile? image)
+        [FromForm] List<IFormFile>? images, [FromForm] IFormFile? image)
     {
+        var hasBearerIdentity = User.Identities.Any(identity =>
+            identity.IsAuthenticated &&
+            string.Equals(identity.AuthenticationType, BearerTokenAuthenticationHandler.SchemeName, StringComparison.Ordinal));
+        if (!hasBearerIdentity && !await _antiforgery.IsRequestValidAsync(HttpContext))
+            return BadRequest(new ApiError { Message = "A valid anti-forgery token is required for cookie-authenticated requests." });
+
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
 
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(priority) || string.IsNullOrWhiteSpace(status))
             return BadRequest(new ApiError { Message = "Title, Priority and Status are required." });
 
-        string imagePath = "";
-        if (image is not null && image.Length > 0)
+        var imageFiles = images?.Where(file => file.Length > 0).ToList() ?? new List<IFormFile>();
+        if (image is { Length: > 0 })
+            imageFiles.Add(image);
+
+        if (imageFiles.Count > 10)
+            return BadRequest(new ApiError { Message = "You can attach up to 10 photos to a requirement." });
+
+        const long maxImageSizeBytes = 10 * 1024 * 1024;
+        const long maxTotalSizeBytes = 25 * 1024 * 1024;
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-            var ext = Path.GetExtension(image.FileName).ToLowerInvariant();
-            if (!allowedExtensions.Contains(ext))
-                return BadRequest(new ApiError { Message = "Unsupported image type." });
+            ".jpg", ".jpeg", ".png", ".gif", ".webp"
+        };
 
-            var uploadsFolder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
-            Directory.CreateDirectory(uploadsFolder);
+        foreach (var file in imageFiles)
+        {
+            if (!allowedExtensions.Contains(Path.GetExtension(file.FileName)))
+                return BadRequest(new ApiError { Message = "Unsupported photo type. Allowed formats are JPG, PNG, GIF and WEBP." });
 
-            var fileName = $"{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(uploadsFolder, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await image.CopyToAsync(stream);
-            }
-
-            imagePath = $"/uploads/requirements/{fileName}";
+            if (file.Length > maxImageSizeBytes)
+                return BadRequest(new ApiError { Message = "Each photo must be 10 MB or smaller." });
         }
 
-        lead.Requirements.Add(new RequirementEntry
+        if (imageFiles.Sum(file => file.Length) > maxTotalSizeBytes)
+            return BadRequest(new ApiError { Message = "The total photo size must be 25 MB or smaller." });
+
+        var imagePaths = new List<string>();
+        try
         {
-            Title = title,
-            Description = description ?? "",
-            Priority = priority,
-            ExpectedDate = expectedDate ?? "",
-            Budget = budget ?? "",
-            Status = status,
-            ImagePath = imagePath
-        });
+            if (imageFiles.Count > 0)
+            {
+                var uploadsFolder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
+                Directory.CreateDirectory(uploadsFolder);
+
+                foreach (var file in imageFiles)
+                {
+                    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    var fileName = $"{Guid.NewGuid()}{extension}";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+                    var imagePath = $"/uploads/requirements/{fileName}";
+                    imagePaths.Add(imagePath);
+                    await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
+                    await file.CopyToAsync(stream);
+                }
+            }
+        }
+        catch (IOException ex)
+        {
+            foreach (var imagePath in imagePaths) FinanceAttachmentService.Delete(imagePath);
+            _logger.LogError(ex, "Failed to store requirement photos for lead '{LeadId}'.", id);
+            return StatusCode(500, new ApiError { Message = "Failed to store requirement photos." });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            foreach (var imagePath in imagePaths) FinanceAttachmentService.Delete(imagePath);
+            _logger.LogError(ex, "Permission denied while storing requirement photos for lead '{LeadId}'.", id);
+            return StatusCode(500, new ApiError { Message = "Failed to store requirement photos." });
+        }
+
+        var requirement = new RequirementEntry
+        {
+            Title = title.Trim(),
+            Description = description?.Trim() ?? "",
+            Priority = priority.Trim(),
+            ExpectedDate = expectedDate?.Trim() ?? "",
+            Budget = budget?.Trim() ?? "",
+            Status = status.Trim(),
+            ImagePath = imagePaths.FirstOrDefault() ?? "",
+            ImagePathsJson = JsonSerializer.Serialize(imagePaths)
+        };
+        lead.Requirements.Add(requirement);
+
+        if (!await TrySaveAsync($"add requirement for lead '{id}'"))
+        {
+            foreach (var imagePath in imagePaths) FinanceAttachmentService.Delete(imagePath);
+            return StatusCode(500, new ApiError { Message = "Failed to save requirement." });
+        }
 
         return Ok(lead);
     }

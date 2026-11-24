@@ -118,15 +118,16 @@ versa). CORS is enabled for all origins in `Program.cs` so any frontend
 | POST | `/api/leads/{id}/followups` | Log a follow-up (`AddFollowUpRequest`) |
 | POST | `/api/leads/{id}/visits/upload` | Log a visit with up to 10 photos (`multipart/form-data`, bearer token or cookie session with anti-forgery token) |
 | POST | `/api/leads/{id}/requirements` | Add a requirement, JSON only, no image (`AddRequirementRequest`) |
-| POST | `/api/leads/{id}/requirements/upload` | Add a requirement with an optional image (`multipart/form-data`) |
+| POST | `/api/leads/{id}/requirements/upload` | Add a requirement with up to 10 images (`multipart/form-data`) |
 | PUT | `/api/leads/{id}/requirements/{requirementId}` | Replace requirement fields with JSON; existing images are preserved |
 | POST | `/api/leads/{id}/assign` | Assign / re-assign the lead (`AssignLeadRequest`) |
 
 #### Update a requirement
 
 Send a complete JSON body. This endpoint preserves existing images and does not
-upload or remove image files. The multipart `POST /api/leads/{id}/requirements/upload`
-endpoint creates a new requirement with an optional image.
+upload or remove image files. The multipart
+`POST /api/leads/{id}/requirements/upload` endpoint creates a new requirement
+with up to 10 images.
 
 ```http
 PUT /api/leads/LD-1001/requirements/12 HTTP/1.1
@@ -207,6 +208,37 @@ Successful response (`200 OK`):
   }
 }
 ```
+
+#### Add a requirement with multiple photos
+
+Use the `/upload` route with `multipart/form-data`. In Postman, choose **Body →
+form-data** and add the `images` key once for each photo, with each key's type
+set to **File**. Do not set the multipart `Content-Type` manually; Postman or
+curl must add the boundary.
+
+```bash
+curl -X POST "https://<your-host>/api/leads/LD-1001/requirements/upload" \
+  -H "Authorization: Bearer <your_access_token>" \
+  -H "Accept: application/json" \
+  -F "title=Living room window" \
+  -F "description=UPVC sliding window" \
+  -F "priority=High" \
+  -F "expectedDate=2026-12-15" \
+  -F "budget=85000" \
+  -F "status=New" \
+  -F "images=@photo1.jpg" \
+  -F "images=@photo2.png"
+```
+
+The required form fields are `title`, `priority`, and `status`. `description`,
+`expectedDate`, and `budget` are optional. Attach up to 10 photos using the
+repeated `images` key; JPG, JPEG, PNG, GIF, and WEBP are accepted, with a 10 MB
+per-photo and 25 MB total limit. The older singular `image` field is still
+accepted for existing clients.
+
+Success returns `200 OK` with the updated lead, including the new requirement.
+That requirement's `imagePath` contains the first photo and `imagePathsJson`
+contains the full list of photo paths. Error responses use `{ "message": "..." }`.
 
 #### Upload a visit with multiple photos
 

@@ -579,11 +579,107 @@ Accept: application/json
 
 ### 3.10 Lead Requirements (`/api/v1/app/leads/{id}/requirements`)
 - `GET /api/v1/app/leads/{id}/requirements`: Retrieves all requirements for a lead.
-- `POST /api/v1/app/leads/{id}/requirements`: Adds a requirement against a lead.
+- `POST /api/v1/app/leads/{id}/requirements`: Adds a requirement as JSON or `multipart/form-data`.
 - `DELETE /api/v1/app/leads/{id}/requirements/{reqId}`: Removes a requirement.
 
 Item rows may optionally include `quantity`, `areaCharge` (area in square feet), and `amount`.
 The response includes these saved values; older payloads without them remain supported.
+Use the same `POST` URL with `multipart/form-data` to send photos as files instead
+of embedding large base64 strings in `ImageBase64`. The JSON request format remains
+available for existing clients.
+
+#### Multipart request headers
+```http
+Authorization: Bearer <access_token>
+Accept: application/json
+Content-Type: multipart/form-data; boundary=<generated-by-client>
+```
+
+In Postman, choose **Body → form-data**. Add the requirement fields as text and
+the photo fields as **File**. Repeat `Items[0].Images` once for every photo
+belonging to item 0; use `Items[1].Images` for photos belonging to item 1.
+Do not manually enter the `Content-Type` header in Postman; it must generate
+the multipart boundary.
+
+```bash
+curl -X POST "https://crm-project-1-pgi3.onrender.com/api/v1/app/leads/10/requirements" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Accept: application/json" \
+  -F "Title=max" \
+  -F "Priority=Low" \
+  -F "Status=In Progress" \
+  -F "ExpectedDate=2026-11-25" \
+  -F "Budget=101" \
+  -F "Description=max" \
+  -F "Items[0].Category=h2o" \
+  -F "Items[0].Item=water" \
+  -F "Items[0].Location=room" \
+  -F "Items[0].H1=12" \
+  -F "Items[0].H2=15" \
+  -F "Items[0].H3=16" \
+  -F "Items[0].W1=12" \
+  -F "Items[0].W2=13" \
+  -F "Items[0].W3=15" \
+  -F "Items[0].Types=2" \
+  -F "Items[0].Topology=water" \
+  -F "Items[0].Glass=glass" \
+  -F "Items[0].Quantity=1" \
+  -F "Items[0].Images=@photo1.jpg" \
+  -F "Items[0].Images=@photo2.jpg"
+```
+
+Photos are limited to 10 per item, 10 MB per photo, and 25 MB total per item.
+JPG, JPEG, PNG, GIF, and WEBP are accepted. `CategoryId`, `ItemId`, `TypeId`,
+`TopologyId`, and `GlassId` are optional; send them instead of their matching
+text values when using requirement master-data IDs.
+
+#### Multipart success response (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "1 requirement item(s) added successfully.",
+  "data": [
+    {
+      "id": 31,
+      "title": "max",
+      "description": "max",
+      "priority": "Low",
+      "expectedDate": "2026-11-25",
+      "budget": "101",
+      "status": "In Progress",
+      "imagePath": "/uploads/requirements/generated-photo-1.jpg",
+      "imagePaths": [
+        "/uploads/requirements/generated-photo-1.jpg",
+        "/uploads/requirements/generated-photo-2.jpg"
+      ],
+      "category": "h2o",
+      "categoryId": null,
+      "item": "water",
+      "itemId": null,
+      "location": "room",
+      "h1": "12",
+      "h2": "15",
+      "h3": "16",
+      "w1": "12",
+      "w2": "13",
+      "w3": "15",
+      "types": "2",
+      "typeId": null,
+      "topology": "water",
+      "topologyId": null,
+      "glass": "glass",
+      "glassId": null,
+      "areaCharge": "",
+      "amount": "",
+      "requirementType": "h2o",
+      "itemName": "water",
+      "quantity": "1",
+      "details": "Location: room | Height: H1: 12, H2: 15, H3: 16 | Width: W1: 12, W2: 13, W3: 15 | Types: 2 | Glass: glass | Topology: water",
+      "remarks": "max"
+    }
+  ]
+}
+```
 
 ---
 

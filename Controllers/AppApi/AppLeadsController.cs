@@ -6,6 +6,7 @@ using CrmLeadManagement.Models.Dtos;
 using CrmLeadManagement.Models.Dtos.App;
 using CrmLeadManagement.Security;
 using CrmLeadManagement.Services;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,18 +29,21 @@ public class AppLeadsController : ControllerBase
     private readonly IAuditLogService _auditLogService;
     private readonly IMasterDataService _masterDataService;
     private readonly ITokenService? _tokenService;
+    private readonly IAntiforgery _antiforgery;
 
     public AppLeadsController(
         AppDbContext db,
         ILogger<AppLeadsController> logger,
         IAuditLogService auditLogService,
         IMasterDataService masterDataService,
+        IAntiforgery antiforgery,
         ITokenService? tokenService = null)
     {
         _db = db;
         _logger = logger;
         _auditLogService = auditLogService;
         _masterDataService = masterDataService;
+        _antiforgery = antiforgery;
         _tokenService = tokenService;
     }
 
@@ -1248,8 +1252,31 @@ public class AppLeadsController : ControllerBase
     /// </summary>
     [HttpPost("{id}/requirements")]
     [HttpPost("{id}/requirement")]
-    public async Task<IActionResult> AddRequirement(string id, [FromBody] AppRequirementInputDto input)
+    [Consumes("application/json")]
+    public Task<IActionResult> AddRequirement(string id, [FromBody] AppRequirementInputDto input)
+        => AddRequirementCoreAsync(id, input);
+
+    [HttpPost("{id}/requirements")]
+    [HttpPost("{id}/requirement")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    public async Task<IActionResult> AddRequirementMultipart(string id, [FromForm] AppRequirementInputDto input)
     {
+        var hasBearerIdentity = User.Identities.Any(identity =>
+            identity.IsAuthenticated &&
+            string.Equals(identity.AuthenticationType, BearerTokenAuthenticationHandler.SchemeName, StringComparison.Ordinal));
+        if (!hasBearerIdentity && !await _antiforgery.IsRequestValidAsync(HttpContext))
+        {
+            return BadRequest(AppApiErrorResponse.Fail(
+                "A valid anti-forgery token is required for cookie-authenticated requests."));
+        }
+
+        return await AddRequirementCoreAsync(id, input);
+    }
+
+    private async Task<IActionResult> AddRequirementCoreAsync(string id, AppRequirementInputDto input)
+    {
+        var savedImagePaths = new List<string>();
         try
         {
             var lead = await FindLeadAsync(id);
@@ -1294,7 +1321,9 @@ public class AppLeadsController : ControllerBase
                     var qty = T(r.Quantity);
                     var areaCharge = T(r.AreaCharge);
                     var amount = T(r.Amount);
-                    var hasImage = !string.IsNullOrWhiteSpace(r.ImageBase64);
+                    var uploadedImages = r.Images?.Where(image => image.Length > 0).ToList() ?? new List<IFormFile>();
+                    var hasBase64Image = !string.IsNullOrWhiteSpace(r.ImageBase64);
+                    var hasImage = hasBase64Image || uploadedImages.Count > 0;
                     var hasMasterIds = r.CategoryId.HasValue || r.ItemId.HasValue || r.TypeId.HasValue ||
                                        r.TopologyId.HasValue || r.GlassId.HasValue;
 
@@ -1303,6 +1332,13 @@ public class AppLeadsController : ControllerBase
                             .All(string.IsNullOrWhiteSpace) && !hasImage && !hasMasterIds)
                     {
                         continue;
+                    }
+
+                    var imageValidationError = ValidateRequirementImages(uploadedImages, hasBase64Image);
+                    if (imageValidationError is not null)
+                    {
+                        DeleteRequirementImages(savedImagePaths);
+                        return BadRequest(AppApiErrorResponse.Fail(imageValidationError));
                     }
 
                     if (hasMasterIds)
@@ -1315,7 +1351,10 @@ public class AppLeadsController : ControllerBase
                             },
                             HttpContext.RequestAborted);
                         if (!resolution.IsValid)
+                        {
+                            DeleteRequirementImages(savedImagePaths);
                             return BadRequest(AppApiErrorResponse.Fail(resolution.Error ?? "Invalid requirement master selection."));
+                        }
 
                         cat = resolution.Items[0].Category;
                         itm = resolution.Items[0].Item;
@@ -1350,7 +1389,8 @@ public class AppLeadsController : ControllerBase
                     if (!string.IsNullOrWhiteSpace(gls)) descParts.Add($"Glass: {gls}");
                     if (!string.IsNullOrWhiteSpace(top)) descParts.Add($"Topology: {top}");
 
-                    var imagePath = await SaveRequirementImageAsync(r.ImageBase64);
+                    var imagePaths = await SaveRequirementImagesAsync(uploadedImages, r.ImageBase64);
+                    savedImagePaths.AddRange(imagePaths);
 
                     var entry = new RequirementEntry
                     {
@@ -1360,7 +1400,8 @@ public class AppLeadsController : ControllerBase
                         ExpectedDate = expectedDate,
                         Budget = budget,
                         Status = status,
-                        ImagePath = imagePath,
+                        ImagePath = imagePaths.FirstOrDefault() ?? "",
+                        ImagePathsJson = System.Text.Json.JsonSerializer.Serialize(imagePaths),
 
                         // Same params as web panel
                         Category = cat,
@@ -1391,7 +1432,6 @@ public class AppLeadsController : ControllerBase
                         Remarks = mainDescription
                     };
 
-                    lead.Requirements.Add(entry);
                     created.Add(entry);
                 }
 
@@ -1400,7 +1440,11 @@ public class AppLeadsController : ControllerBase
                     return BadRequest(AppApiErrorResponse.Fail("At least one item with some details is required."));
                 }
 
+                foreach (var entry in created)
+                    lead.Requirements.Add(entry);
+
                 await _db.SaveChangesAsync();
+                savedImagePaths.Clear();
 
                 var dtoList = created.Select(AppRequirementResponseDto.FromEntity).ToList();
 
@@ -1429,6 +1473,7 @@ public class AppLeadsController : ControllerBase
 
             lead.Requirements.Add(single);
             await _db.SaveChangesAsync();
+            savedImagePaths.Clear();
 
             var singleDto = AppRequirementResponseDto.FromEntity(single);
 
@@ -1437,10 +1482,86 @@ public class AppLeadsController : ControllerBase
         }
         catch (Exception ex)
         {
+            DeleteRequirementImages(savedImagePaths);
             _logger.LogError(ex, "Failed to add requirement for lead '{LeadId}'.", id);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 AppApiErrorResponse.Fail("An error occurred while adding requirement: " + ex.Message));
         }
+    }
+
+    private static void DeleteRequirementImages(IEnumerable<string> imagePaths)
+    {
+        foreach (var imagePath in imagePaths)
+            FinanceAttachmentService.Delete(imagePath);
+    }
+
+    private static string? ValidateRequirementImages(IReadOnlyCollection<IFormFile> images, bool hasBase64Image)
+    {
+        if (images.Count + (hasBase64Image ? 1 : 0) > 10)
+            return "You can attach up to 10 photos to each requirement item.";
+
+        const long maxImageSizeBytes = 10 * 1024 * 1024;
+        const long maxTotalSizeBytes = 25 * 1024 * 1024;
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".webp"
+        };
+
+        foreach (var image in images)
+        {
+            if (!allowedExtensions.Contains(Path.GetExtension(image.FileName)))
+                return "Unsupported photo type. Allowed formats are JPG, PNG, GIF and WEBP.";
+            if (image.Length > maxImageSizeBytes)
+                return "Each photo must be 10 MB or smaller.";
+        }
+
+        return images.Sum(image => image.Length) > maxTotalSizeBytes
+            ? "The total photo size for each requirement item must be 25 MB or smaller."
+            : null;
+    }
+
+    private async Task<List<string>> SaveRequirementImagesAsync(
+        IReadOnlyCollection<IFormFile> images,
+        string? base64Data)
+    {
+        var imagePaths = new List<string>();
+        try
+        {
+            if (images.Count > 0)
+            {
+                var folder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
+                Directory.CreateDirectory(folder);
+
+                foreach (var image in images)
+                {
+                    var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                    var fileName = $"{Guid.NewGuid()}{extension}";
+                    var filePath = Path.Combine(folder, fileName);
+                    var imagePath = $"/uploads/requirements/{fileName}";
+                    imagePaths.Add(imagePath);
+                    await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
+                    await image.CopyToAsync(stream);
+                }
+            }
+
+            var base64ImagePath = await SaveRequirementImageAsync(base64Data);
+            if (!string.IsNullOrWhiteSpace(base64ImagePath))
+                imagePaths.Add(base64ImagePath);
+        }
+        catch (IOException)
+        {
+            foreach (var imagePath in imagePaths)
+                FinanceAttachmentService.Delete(imagePath);
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            foreach (var imagePath in imagePaths)
+                FinanceAttachmentService.Delete(imagePath);
+            throw;
+        }
+
+        return imagePaths;
     }
 
     /// <summary>

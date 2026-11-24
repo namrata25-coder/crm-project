@@ -54,6 +54,9 @@ public class AppRequirementItemDto
 
     /// <summary>Photo as base64, with or without "data:image/jpeg;base64," prefix.</summary>
     public string? ImageBase64 { get; set; }
+
+    [JsonIgnore]
+    public List<IFormFile>? Images { get; set; }
 }
 
 public class AppRequirementInputDto
@@ -90,6 +93,7 @@ public class AppRequirementResponseDto
     public string? Budget { get; set; }
     public string? Status { get; set; }
     public string? ImagePath { get; set; }
+    public List<string> ImagePaths { get; set; } = new();
 
     // Same params as web panel
     public string? Category { get; set; }
@@ -122,6 +126,22 @@ public class AppRequirementResponseDto
     public static AppRequirementResponseDto FromEntity(RequirementEntry entity)
     {
         var rawDesc = entity.Description ?? "";
+        var imagePaths = new List<string>();
+        if (!string.IsNullOrWhiteSpace(entity.ImagePathsJson))
+        {
+            try
+            {
+                imagePaths = JsonSerializer.Deserialize<List<string>>(entity.ImagePathsJson)?
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .ToList() ?? new List<string>();
+            }
+            catch (JsonException)
+            {
+            }
+        }
+        if (imagePaths.Count == 0 && !string.IsNullOrWhiteSpace(entity.ImagePath))
+            imagePaths.Add(entity.ImagePath);
+
         var looksLikeSpecs = rawDesc.Contains("Location:", StringComparison.OrdinalIgnoreCase) ||
                              rawDesc.Contains("Height:", StringComparison.OrdinalIgnoreCase) ||
                              rawDesc.Contains("Width:", StringComparison.OrdinalIgnoreCase);
@@ -142,6 +162,7 @@ public class AppRequirementResponseDto
             Budget = entity.Budget,
             Status = entity.Status,
             ImagePath = entity.ImagePath,
+            ImagePaths = imagePaths,
 
             Category = !string.IsNullOrWhiteSpace(entity.Category) ? entity.Category : entity.RequirementType,
             CategoryId = entity.CategoryId,

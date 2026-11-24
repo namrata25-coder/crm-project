@@ -43,8 +43,8 @@ public class AddVisitRequest
     public string? Remarks { get; set; }
 }
 
-/// <summary>Body for POST /api/leads/{id}/requirements (JSON, no image). Use the multipart
-/// endpoint (same route, multipart/form-data) if an image needs to be uploaded.</summary>
+/// <summary>JSON body for POST /api/leads/{id}/requirements. Use the multipart upload route
+/// to attach up to 10 photos.</summary>
 public class AddRequirementRequest
 {
     public string Title { get; set; } = "";
