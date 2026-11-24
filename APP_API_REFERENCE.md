@@ -592,7 +592,7 @@ The response includes these saved values; older payloads without them remain sup
 ---
 
 ### 4.1 List Projects
-Retrieves paginated projects with search, filter, and role data scoping (`OnlyAssigned`).
+Retrieves paginated projects with search, filter, and role data scoping (`OnlyAssigned` users can see projects they created, manage, or are assigned to).
 
 - **Method**: `GET`
 - **Route**: `/api/v1/app/projects`

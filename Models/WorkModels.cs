@@ -24,6 +24,7 @@ public class WorkProject
     public string? Status        { get; set; } = "Active";
     public string? Notes         { get; set; } = "";
     public string? CreatedDate   { get; set; } = "";
+    public string? CreatedBy     { get; set; } = "";
 
     // Navigation
     public List<WorkMilestone> Milestones { get; set; } = new();

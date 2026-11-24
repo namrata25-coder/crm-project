@@ -1230,6 +1230,26 @@ namespace CrmLeadManagement.Migrations
                     b.ToTable("Quotations", (string)null);
                 });
 
+            modelBuilder.Entity("CrmLeadManagement.Models.RequirementTypeOption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Value")
+                        .IsUnique();
+
+                    b.ToTable("RequirementTypeOptions");
+                });
+
             modelBuilder.Entity("CrmLeadManagement.Models.RoleMaster", b =>
                 {
                     b.Property<int>("Id")
@@ -1709,6 +1729,9 @@ namespace CrmLeadManagement.Migrations
                     b.Property<string>("ClientName")
                         .HasColumnType("text");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
                     b.Property<string>("CreatedDate")
                         .HasColumnType("text");
 
@@ -2086,6 +2109,9 @@ namespace CrmLeadManagement.Migrations
 
                             b1.Property<string>("FollowUpType")
                                 .HasColumnType("text");
+
+                            b1.Property<DateTime?>("NextFollowUpDate")
+                                .HasColumnType("timestamp with time zone");
 
                             b1.Property<string>("Remarks")
                                 .HasColumnType("text");

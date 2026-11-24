@@ -80,11 +80,13 @@ public class AppProjectsController : ControllerBase
                 var role = await _db.RoleMasters.FirstOrDefaultAsync(r => r.RoleName == currentUser.Role);
                 if (role != null && string.Equals(role.DataAccess, "OnlyAssigned", StringComparison.OrdinalIgnoreCase))
                 {
-                    var uName = currentUser.Name ?? "";
-                    var uEmail = currentUser.Email ?? "";
+                    var uName = currentUser.Name?.Trim() ?? "";
+                    var uEmail = currentUser.Email?.Trim() ?? "";
                     query = query.Where(p =>
-                        (p.ProjectManager != null && (p.ProjectManager == uName || p.ProjectManager == uEmail)) ||
-                        (p.AssignedMembers != null && (p.AssignedMembers.Contains(uName) || p.AssignedMembers.Contains(uEmail))));
+                        (uName != "" && (p.CreatedBy == uName || p.ProjectManager == uName ||
+                                         (p.AssignedMembers != null && p.AssignedMembers.Contains(uName)))) ||
+                        (uEmail != "" && (p.CreatedBy == uEmail || p.ProjectManager == uEmail ||
+                                          (p.AssignedMembers != null && p.AssignedMembers.Contains(uEmail)))));
                 }
             }
 
@@ -176,11 +178,19 @@ public class AppProjectsController : ControllerBase
                 var role = await _db.RoleMasters.FirstOrDefaultAsync(r => r.RoleName == currentUser.Role);
                 if (role != null && string.Equals(role.DataAccess, "OnlyAssigned", StringComparison.OrdinalIgnoreCase))
                 {
-                    var uName = currentUser.Name ?? "";
-                    var uEmail = currentUser.Email ?? "";
-                    bool isAssigned = (project.ProjectManager != null && (project.ProjectManager == uName || project.ProjectManager == uEmail)) ||
-                                      (project.AssignedMembers != null && (project.AssignedMembers.Contains(uName) || project.AssignedMembers.Contains(uEmail)));
-                    if (!isAssigned)
+                    var uName = currentUser.Name?.Trim() ?? "";
+                    var uEmail = currentUser.Email?.Trim() ?? "";
+                    bool isCreator = (!string.IsNullOrEmpty(uName) &&
+                                      string.Equals(project.CreatedBy, uName, StringComparison.OrdinalIgnoreCase)) ||
+                                     (!string.IsNullOrEmpty(uEmail) &&
+                                      string.Equals(project.CreatedBy, uEmail, StringComparison.OrdinalIgnoreCase));
+                    bool isManager = (!string.IsNullOrEmpty(uName) &&
+                                      string.Equals(project.ProjectManager, uName, StringComparison.OrdinalIgnoreCase)) ||
+                                     (!string.IsNullOrEmpty(uEmail) &&
+                                      string.Equals(project.ProjectManager, uEmail, StringComparison.OrdinalIgnoreCase));
+                    bool isMember = (!string.IsNullOrEmpty(uName) && project.AssignedMembers?.Contains(uName, StringComparison.OrdinalIgnoreCase) == true) ||
+                                    (!string.IsNullOrEmpty(uEmail) && project.AssignedMembers?.Contains(uEmail, StringComparison.OrdinalIgnoreCase) == true);
+                    if (!isCreator && !isManager && !isMember)
                     {
                         return StatusCode(StatusCodes.Status403Forbidden,
                             AppApiErrorResponse.Fail("You are not authorized to access this project."));
@@ -224,6 +234,16 @@ public class AppProjectsController : ControllerBase
                 return BadRequest(AppApiErrorResponse.Fail("Project budget cannot be negative."));
             }
 
+            var createdBy = currentUser?.Email;
+            if (string.IsNullOrWhiteSpace(createdBy))
+            {
+                createdBy = User.FindFirst(ClaimTypes.Email)?.Value;
+            }
+            if (string.IsNullOrWhiteSpace(createdBy))
+            {
+                createdBy = currentUser?.Name ?? User.Identity?.Name ?? "";
+            }
+
             var project = new WorkProject
             {
                 ProjectCode = NextProjectCode(),
@@ -240,7 +260,8 @@ public class AppProjectsController : ControllerBase
                 Priority = string.IsNullOrWhiteSpace(input.Priority) ? "Medium" : input.Priority.Trim(),
                 Status = string.IsNullOrWhiteSpace(input.Status) ? "Active" : input.Status.Trim(),
                 Notes = input.Notes?.Trim() ?? "",
-                CreatedDate = DateTime.UtcNow.ToString("yyyy-MM-dd")
+                CreatedDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                CreatedBy = createdBy.Trim()
             };
 
             _db.WorkProjects.Add(project);

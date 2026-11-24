@@ -265,8 +265,10 @@ public static class DatabaseSchemaSync
             ""Status"" text,
             ""Notes"" text,
             ""CreatedDate"" text,
+            ""CreatedBy"" text,
             CONSTRAINT ""PK_WorkProjects"" PRIMARY KEY (""Id"")
         );
+        ALTER TABLE ""WorkProjects"" ADD COLUMN IF NOT EXISTS ""CreatedBy"" text;
 
         CREATE TABLE IF NOT EXISTS ""AssignmentEntry"" (
             ""LeadId_FK"" integer NOT NULL,
