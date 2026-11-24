@@ -210,7 +210,7 @@
         <div class="tab-panel" id="tab-requirement">
             <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>Requirements</span>
-                <button type="button" class="btn btn-primary btn-sm" onclick="toggleRequirementForm()">
+                <button type="button" class="btn btn-primary btn-sm" onclick="startNewRequirement()">
                     <i class="bi bi-plus-lg"></i> Add Requirement
                 </button>
             </div>
@@ -223,9 +223,10 @@
             <div id="addRequirementForm" class="req-add-form" style="display:none;">
                 <form id="requirementForm" method="post" asp-controller="Lead" asp-action="AddRequirement" enctype="multipart/form-data">
                     <input type="hidden" name="leadId" value="@lead.LeadId" />
+                    <input type="hidden" id="editRequirementId" name="reqId" value="" />
 
                     <input type="hidden" name="itemizedRequirement" value="true" />
-                    <div style="font-weight:700;font-size:15px;color:var(--ink-800);margin-bottom:12px;">Basic Requirement Details</div>
+                    <div id="requirementFormHeading" style="font-weight:700;font-size:15px;color:var(--ink-800);margin-bottom:12px;">Basic Requirement Details</div>
                     <div class="form-grid">
                         <div class="form-field">
                             <label>Priority</label>
@@ -317,8 +318,8 @@
                     </div>
 
                     <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
-                        <button type="button" class="btn btn-outline" onclick="toggleRequirementForm()">Cancel</button>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Requirement</button>
+                        <button type="button" class="btn btn-outline" onclick="cancelRequirementEdit()">Cancel</button>
+                        <button type="submit" id="saveRequirementButton" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Requirement</button>
                     </div>
                 </form>
             </div>
@@ -380,6 +381,25 @@
                                 <tr>
                                     <td style="text-align:center;">
                                         <div>@(index + 1)</div>
+                                        <button type="button" class="icon-btn" style="border:none;background:transparent;color:var(--brand-600);cursor:pointer;"
+                                                title="Edit Requirement"
+                                                onclick="editRequirementItem(this)"
+                                                data-req-id="@item.Id"
+                                                data-category="@category"
+                                                data-item="@itemName"
+                                                data-location="@item.Location"
+                                                data-h1="@item.H1" data-h2="@item.H2" data-h3="@item.H3"
+                                                data-w1="@item.W1" data-w2="@item.W2" data-w3="@item.W3"
+                                                data-types="@item.Types" data-topology="@item.Topology" data-glass="@item.Glass"
+                                                data-quantity="@item.Quantity" data-area-charge="@item.AreaCharge" data-amount="@item.Amount"
+                                                data-priority="@item.Priority" data-status="@item.Status"
+                                                data-expected-date="@item.ExpectedDate" data-budget="@item.Budget"
+                                                data-title="@(string.IsNullOrWhiteSpace(item.Details) ? item.Title : item.Details)"
+                                                data-description="@item.Remarks"
+                                                data-image-count="@RequirementImagePaths(item).Count"
+                                                data-image-path="@RequirementImagePaths(item).FirstOrDefault()">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
                                         <form method="post" asp-controller="Lead" asp-action="DeleteRequirement" onsubmit="return confirm('Delete this requirement?');" style="display:inline;">
                                             <input type="hidden" name="leadId" value="@lead.LeadId" />
                                             <input type="hidden" name="reqId" value="@item.Id" />
@@ -415,18 +435,18 @@
                                         {
                                             <div class="hint">@item.Remarks</div>
                                         }
-                                        @if (!string.IsNullOrWhiteSpace(item.ImagePath))
+                                        @foreach (var imagePath in RequirementImagePaths(item))
                                         {
-                                            if (item.ImagePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                                            if (imagePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                                             {
-                                                <a href="@item.ImagePath" target="_blank" rel="noopener" class="btn btn-outline btn-xs" title="View PDF">
+                                                <a href="@imagePath" target="_blank" rel="noopener" class="btn btn-outline btn-xs" title="View PDF">
                                                     <i class="bi bi-file-earmark-pdf"></i> PDF
                                                 </a>
                                             }
                                             else
                                             {
-                                                <a href="@item.ImagePath" target="_blank" rel="noopener">
-                                                    <img src="@item.ImagePath" alt="Requirement attachment" loading="lazy"
+                                                <a href="@imagePath" target="_blank" rel="noopener">
+                                                    <img src="@imagePath" alt="Requirement attachment" loading="lazy"
                                                          style="max-width:60px;max-height:45px;margin-top:5px;border-radius:4px;border:1px solid var(--line);object-fit:cover;" />
                                                 </a>
                                             }
@@ -2019,6 +2039,24 @@
     {
         if (string.IsNullOrWhiteSpace(imagePathsJson)) return new List<string>();
         return System.Text.Json.JsonSerializer.Deserialize<List<string>>(imagePathsJson) ?? new List<string>();
+    }
+
+    List<string> RequirementImagePaths(RequirementEntry item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ImagePathsJson))
+        {
+            try
+            {
+                var paths = System.Text.Json.JsonSerializer.Deserialize<List<string>>(item.ImagePathsJson);
+                if (paths is { Count: > 0 })
+                    return paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(item.ImagePath) ? new List<string>() : new List<string> { item.ImagePath };
     }
 
     string Initials(string? name)

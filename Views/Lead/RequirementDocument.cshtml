@@ -31,6 +31,24 @@
             .ToArray();
     }
 
+    List<string> RequirementImagePaths(RequirementEntry item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ImagePathsJson))
+        {
+            try
+            {
+                var paths = System.Text.Json.JsonSerializer.Deserialize<List<string>>(item.ImagePathsJson);
+                if (paths is { Count: > 0 })
+                    return paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(item.ImagePath) ? new List<string>() : new List<string> { item.ImagePath };
+    }
+
     var hasAreaTotal = items.Any(item => ParseNumber(item.AreaCharge).HasValue);
     var hasAmountTotal = items.Any(item => ParseNumber(item.Amount).HasValue);
     var totalArea = items.Sum(item => ParseNumber(item.AreaCharge) ?? 0m);
@@ -198,9 +216,9 @@
                                     {
                                         <div class="item-subline">@category</div>
                                     }
-                                    @if (!string.IsNullOrWhiteSpace(item.ImagePath))
+                                    @foreach (var imagePath in RequirementImagePaths(item))
                                     {
-                                        <img class="requirement-image" src="@item.ImagePath" alt="Requirement item" />
+                                        <img class="requirement-image" src="@imagePath" alt="Requirement item" />
                                     }
                                 </td>
                                 <td>@(string.IsNullOrWhiteSpace(item.Glass) ? "—" : item.Glass)</td>

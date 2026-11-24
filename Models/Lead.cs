@@ -95,6 +95,7 @@ public class RequirementEntry
     public string? Budget { get; set; } = "";
     public string? Status { get; set; } = "New";
     public string? ImagePath { get; set; } = ""; // relative path under wwwroot, e.g. /uploads/requirements/xyz.jpg
+    public string? ImagePathsJson { get; set; } = "[]";
 
     // Item specifications (same parameters as web panel table)
     public string? Category { get; set; } = "";

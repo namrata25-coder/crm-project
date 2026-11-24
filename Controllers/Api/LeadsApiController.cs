@@ -628,6 +628,62 @@ public class LeadsApiController : ControllerBase
         return Ok(lead);
     }
 
+    // PUT /api/leads/{id}/requirements/{requirementId}
+    [HttpPut("{id}/requirements/{requirementId:int}")]
+    public async Task<IActionResult> UpdateRequirement(string id, int requirementId, [FromBody] UpdateRequirementRequest request)
+    {
+        var lead = LeadStore.GetById(id);
+        if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+
+        var requirement = lead.Requirements.FirstOrDefault(entry => entry.Id == requirementId);
+        if (requirement is null)
+            return NotFound(new ApiError { Message = $"Requirement '{requirementId}' not found for lead '{id}'." });
+
+        if (string.IsNullOrWhiteSpace(request.Title) ||
+            string.IsNullOrWhiteSpace(request.Priority) ||
+            string.IsNullOrWhiteSpace(request.Status))
+        {
+            return BadRequest(new ApiError { Message = "Title, Priority and Status are required." });
+        }
+
+        requirement.Title = request.Title.Trim();
+        requirement.Description = request.Description?.Trim() ?? "";
+        requirement.Priority = request.Priority.Trim();
+        requirement.ExpectedDate = request.ExpectedDate?.Trim() ?? "";
+        requirement.Budget = request.Budget?.Trim() ?? "";
+        requirement.Status = request.Status.Trim();
+        requirement.Category = request.Category?.Trim() ?? "";
+        requirement.RequirementType = requirement.Category;
+        requirement.Item = request.Item?.Trim() ?? "";
+        requirement.ItemName = requirement.Item;
+        requirement.Location = request.Location?.Trim() ?? "";
+        requirement.H1 = request.H1?.Trim() ?? "";
+        requirement.H2 = request.H2?.Trim() ?? "";
+        requirement.H3 = request.H3?.Trim() ?? "";
+        requirement.W1 = request.W1?.Trim() ?? "";
+        requirement.W2 = request.W2?.Trim() ?? "";
+        requirement.W3 = request.W3?.Trim() ?? "";
+        requirement.Types = request.Types?.Trim() ?? "";
+        requirement.Topology = request.Topology?.Trim() ?? "";
+        requirement.Glass = request.Glass?.Trim() ?? "";
+        requirement.Quantity = request.Quantity?.Trim() ?? "";
+        requirement.AreaCharge = request.AreaCharge?.Trim() ?? "";
+        requirement.Amount = request.Amount?.Trim() ?? "";
+        requirement.Details = request.Details?.Trim() ?? "";
+        requirement.Remarks = request.Remarks?.Trim() ?? "";
+
+        if (!await TrySaveAsync($"update requirement '{requirementId}' for lead '{id}'"))
+            return StatusCode(500, new ApiError { Message = "Failed to update requirement." });
+
+        return Ok(new
+        {
+            success = true,
+            message = "Requirement updated successfully",
+            leadId = lead.LeadId,
+            requirement
+        });
+    }
+
     // POST /api/leads/{id}/requirements/upload   (multipart/form-data, with an optional image file)
     [HttpPost("{id}/requirements/upload")]
     [Consumes("multipart/form-data")]

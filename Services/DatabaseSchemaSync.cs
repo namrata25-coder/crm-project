@@ -396,6 +396,7 @@ public static class DatabaseSchemaSync
             ""Budget"" text,
             ""Status"" text,
             ""ImagePath"" text,
+            ""ImagePathsJson"" text,
             ""RequirementType"" text,
             ""ItemName"" text,
             ""Quantity"" text,
@@ -764,6 +765,7 @@ public static class DatabaseSchemaSync
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""Budget"" text;
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""Status"" text;
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""ImagePath"" text;
+        ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""ImagePathsJson"" text;
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""RequirementType"" text;
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""ItemName"" text;
         ALTER TABLE ""RequirementEntry"" ADD COLUMN IF NOT EXISTS ""Quantity"" text;

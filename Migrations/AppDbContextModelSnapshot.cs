@@ -2180,6 +2180,9 @@ namespace CrmLeadManagement.Migrations
                             b1.Property<string>("ImagePath")
                                 .HasColumnType("text");
 
+                            b1.Property<string>("ImagePathsJson")
+                                .HasColumnType("text");
+
                             b1.Property<string>("Item")
                                 .HasColumnType("text");
 

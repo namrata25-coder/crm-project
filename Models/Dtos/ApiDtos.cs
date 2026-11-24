@@ -55,6 +55,34 @@ public class AddRequirementRequest
     public string Status { get; set; } = "New";
 }
 
+/// <summary>Full JSON body for PUT /api/leads/{id}/requirements/{requirementId}.</summary>
+public class UpdateRequirementRequest
+{
+    public string Title { get; set; } = "";
+    public string? Description { get; set; }
+    public string Priority { get; set; } = "Medium";
+    public string? ExpectedDate { get; set; }
+    public string? Budget { get; set; }
+    public string Status { get; set; } = "New";
+    public string? Category { get; set; }
+    public string? Item { get; set; }
+    public string? Location { get; set; }
+    public string? H1 { get; set; }
+    public string? H2 { get; set; }
+    public string? H3 { get; set; }
+    public string? W1 { get; set; }
+    public string? W2 { get; set; }
+    public string? W3 { get; set; }
+    public string? Types { get; set; }
+    public string? Topology { get; set; }
+    public string? Glass { get; set; }
+    public string? Quantity { get; set; }
+    public string? AreaCharge { get; set; }
+    public string? Amount { get; set; }
+    public string? Details { get; set; }
+    public string? Remarks { get; set; }
+}
+
 /// <summary>Body for POST /api/leads/{id}/assign</summary>
 public class AssignLeadRequest
 {

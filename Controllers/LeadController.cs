@@ -281,7 +281,7 @@ public class LeadController : Controller
         List<string>? types, List<string>? glass, List<string>? topology,
         List<string>? quantity, List<string>? areaCharge, List<string>? amount,
         string? requirementType = null, string? itemName = null, string? remarks = null,
-        bool itemizedRequirement = false)
+        bool itemizedRequirement = false, int? reqId = null)
     {
         var lead = LeadStore.GetById(leadId);
         if (lead is null) return RedirectToAction("List");
@@ -308,6 +308,12 @@ public class LeadController : Controller
         if (itemizedRequirement && count == 0)
         {
             TempData["RequirementError"] = "Add at least one item before saving the requirement.";
+            return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+        }
+
+        if (reqId.HasValue && !itemizedRequirement)
+        {
+            TempData["RequirementError"] = "The requirement edit request is invalid.";
             return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
         }
 
@@ -362,13 +368,31 @@ public class LeadController : Controller
 
         if (count > 0)
         {
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            const long maxImageSizeBytes = 10 * 1024 * 1024;
+            const long maxItemImageSizeBytes = 25 * 1024 * 1024;
+            var cameraImages = new Dictionary<int, (string Extension, byte[] Bytes)>();
+            var requirementToEdit = reqId.HasValue
+                ? lead.Requirements.FirstOrDefault(requirement => requirement.Id == reqId.Value)
+                : null;
+
+            if (reqId.HasValue && requirementToEdit is null)
+            {
+                TempData["RequirementError"] = "The requirement you tried to edit could not be found.";
+                return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+            }
+
+            if (reqId.HasValue && count != 1)
+            {
+                TempData["RequirementError"] = "Edit one requirement item at a time.";
+                return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+            }
+
             for (int i = 0; i < count; i++)
             {
                 var rowCategory = category?.ElementAtOrDefault(i)?.Trim() ?? "";
                 var rowItem = items?.ElementAtOrDefault(i)?.Trim() ?? "";
-                var rowImage = Request.Form.Files.GetFile($"requirementImage_{i}")
-                               ?? Request.Form.Files.GetFile($"requirementImage[{i}]")
-                               ?? Request.Form.Files.ElementAtOrDefault(i);
+                var rowImages = GetRequirementItemImages(i);
                 var imageData = Request.Form[$"requirementImageData_{i}"].FirstOrDefault()
                                 ?? Request.Form[$"requirementImageData[{i}]"].FirstOrDefault()
                                 ?? (Request.Form["requirementImageData"].Count > i ? Request.Form["requirementImageData"][i] : null);
@@ -387,7 +411,7 @@ public class LeadController : Controller
                                  !string.IsNullOrWhiteSpace(quantity?.ElementAtOrDefault(i)) ||
                                  !string.IsNullOrWhiteSpace(areaCharge?.ElementAtOrDefault(i)) ||
                                  !string.IsNullOrWhiteSpace(amount?.ElementAtOrDefault(i)) ||
-                                 rowImage is { Length: > 0 } || !string.IsNullOrWhiteSpace(imageData);
+                                 rowImages.Count > 0 || !string.IsNullOrWhiteSpace(imageData);
                 if (!hasAnyData)
                     continue;
 
@@ -396,9 +420,56 @@ public class LeadController : Controller
                     TempData["RequirementError"] = "Enter a Category and Item for every non-empty item row.";
                     return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
                 }
+
+                var cameraImageCount = string.IsNullOrWhiteSpace(imageData) ? 0 : 1;
+                var existingImageCount = reqId.HasValue
+                    ? GetRequirementImagePaths(requirementToEdit!).Count
+                    : 0;
+                if (rowImages.Count + cameraImageCount > 0 &&
+                    existingImageCount + rowImages.Count + cameraImageCount > 10)
+                {
+                    TempData["RequirementError"] = "You can attach up to 10 photos to each item.";
+                    return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                }
+
+                if (rowImages.Any(file => !allowedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase)))
+                {
+                    TempData["RequirementError"] = "Unsupported image type. Allowed formats are JPG, PNG, GIF and WEBP.";
+                    return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                }
+
+                if (rowImages.Any(file => file.Length > maxImageSizeBytes))
+                {
+                    TempData["RequirementError"] = "Each photo must be 10 MB or smaller.";
+                    return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                }
+
+                byte[] cameraImageBytes = Array.Empty<byte>();
+                var cameraImageExtension = ".jpg";
+                if (!string.IsNullOrWhiteSpace(imageData))
+                {
+                    if (!TryParseRequirementImage(imageData, out cameraImageExtension, out cameraImageBytes))
+                    {
+                        TempData["RequirementError"] = "The captured photo could not be read. Please capture it again.";
+                        return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                    }
+
+                    if (cameraImageBytes.Length > maxImageSizeBytes)
+                    {
+                        TempData["RequirementError"] = "Each photo must be 10 MB or smaller.";
+                        return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                    }
+
+                    cameraImages[i] = (cameraImageExtension, cameraImageBytes);
+                }
+
+                if (rowImages.Sum(file => file.Length) + cameraImageBytes.LongLength > maxItemImageSizeBytes)
+                {
+                    TempData["RequirementError"] = "The total photo size for each item must be 25 MB or smaller.";
+                    return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                }
             }
 
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
             var uploadsFolder = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements");
 
             for (int i = 0; i < count; i++)
@@ -430,15 +501,12 @@ public class LeadController : Controller
                     continue;
                 }
 
-                string imagePath = "";
-                var file = Request.Form.Files.GetFile($"requirementImage_{i}") 
-                           ?? Request.Form.Files.GetFile($"requirementImage[{i}]") 
-                           ?? Request.Form.Files.ElementAtOrDefault(i);
-                var base64Data = Request.Form[$"requirementImageData_{i}"].FirstOrDefault() 
-                                 ?? Request.Form[$"requirementImageData[{i}]"].FirstOrDefault() 
-                                 ?? (Request.Form["requirementImageData"].Count > i ? Request.Form["requirementImageData"][i] : null);
+                var imagePaths = reqId.HasValue
+                    ? GetRequirementImagePaths(requirementToEdit!)
+                    : new List<string>();
+                var rowImages = GetRequirementItemImages(i);
 
-                if (file is not null && file.Length > 0)
+                foreach (var file in rowImages)
                 {
                     var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
                     if (allowedExtensions.Contains(ext))
@@ -446,44 +514,21 @@ public class LeadController : Controller
                         Directory.CreateDirectory(uploadsFolder);
                         var fileName = $"{Guid.NewGuid()}{ext}";
                         var filePath = Path.Combine(uploadsFolder, fileName);
-                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
                         {
                             await file.CopyToAsync(stream);
                         }
-                        imagePath = $"/uploads/requirements/{fileName}";
+                        imagePaths.Add($"/uploads/requirements/{fileName}");
                     }
                 }
-                else if (!string.IsNullOrWhiteSpace(base64Data))
-                {
-                    try
-                    {
-                        var rawData = base64Data;
-                        string ext = ".jpg";
-                        if (rawData.Contains(","))
-                        {
-                            var parts = rawData.Split(new[] { ',' }, 2);
-                            var header = parts[0];
-                            rawData = parts[1];
-                            if (header.Contains("image/png")) ext = ".png";
-                            else if (header.Contains("image/webp")) ext = ".webp";
-                            else if (header.Contains("image/gif")) ext = ".gif";
-                            else ext = ".jpg";
-                        }
 
-                        var bytes = Convert.FromBase64String(rawData);
-                        if (bytes.Length > 0)
-                        {
-                            Directory.CreateDirectory(uploadsFolder);
-                            var fileName = $"{Guid.NewGuid()}{ext}";
-                            var filePath = Path.Combine(uploadsFolder, fileName);
-                            await System.IO.File.WriteAllBytesAsync(filePath, bytes);
-                            imagePath = $"/uploads/requirements/{fileName}";
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore corrupt base64 string and continue gracefully
-                    }
+                if (cameraImages.TryGetValue(i, out var cameraImage))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                    var fileName = $"{Guid.NewGuid()}{cameraImage.Extension}";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+                    await System.IO.File.WriteAllBytesAsync(filePath, cameraImage.Bytes);
+                    imagePaths.Add($"/uploads/requirements/{fileName}");
                 }
 
                 // Build Item Title
@@ -517,37 +562,40 @@ public class LeadController : Controller
                 if (!string.IsNullOrWhiteSpace(gls)) descParts.Add($"Glass: {gls}");
                 if (!string.IsNullOrWhiteSpace(top)) descParts.Add($"Topology: {top}");
 
-                lead.Requirements.Add(new RequirementEntry
-                {
-                    Title = itemTitle,
-                    Description = string.Join(" | ", descParts),
-                    Priority = priority ?? "Medium",
-                    ExpectedDate = expectedDate ?? "",
-                    Budget = budget ?? "",
-                    Status = status ?? "New",
-                    ImagePath = imagePath,
-                    ItemName = itm,
-                    RequirementType = cat,
-                    Category = cat,
-                    Item = itm,
-                    Location = loc,
-                    H1 = _h1,
-                    H2 = _h2,
-                    H3 = _h3,
-                    W1 = _w1,
-                    W2 = _w2,
-                    W3 = _w3,
-                    Quantity = string.IsNullOrWhiteSpace(qty) ? "1" : qty,
-                    AreaCharge = area,
-                    Amount = rowAmount,
-                    Types = typ,
-                    Topology = top,
-                    Glass = gls,
-                    Details = title ?? "",
-                    Remarks = description ?? ""
-                });
+                var requirement = requirementToEdit ?? new RequirementEntry();
+                requirement.Title = itemTitle;
+                requirement.Description = string.Join(" | ", descParts);
+                requirement.Priority = priority ?? "Medium";
+                requirement.ExpectedDate = expectedDate ?? "";
+                requirement.Budget = budget ?? "";
+                requirement.Status = status ?? "New";
+                requirement.ImagePath = imagePaths.FirstOrDefault() ?? "";
+                requirement.ImagePathsJson = System.Text.Json.JsonSerializer.Serialize(imagePaths);
+                requirement.ItemName = itm;
+                requirement.RequirementType = cat;
+                requirement.Category = cat;
+                requirement.Item = itm;
+                requirement.Location = loc;
+                requirement.H1 = _h1;
+                requirement.H2 = _h2;
+                requirement.H3 = _h3;
+                requirement.W1 = _w1;
+                requirement.W2 = _w2;
+                requirement.W3 = _w3;
+                requirement.Quantity = string.IsNullOrWhiteSpace(qty) ? "1" : qty;
+                requirement.AreaCharge = area;
+                requirement.Amount = rowAmount;
+                requirement.Types = typ;
+                requirement.Topology = top;
+                requirement.Glass = gls;
+                requirement.Details = title ?? "";
+                requirement.Remarks = description ?? "";
+
+                if (requirementToEdit is null)
+                    lead.Requirements.Add(requirement);
             }
 
+            await _db.SaveChangesAsync();
             return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
         }
 
@@ -589,6 +637,66 @@ public class LeadController : Controller
         }
 
         return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+    }
+
+    private List<IFormFile> GetRequirementItemImages(int index)
+    {
+        var currentName = $"requirementImage_{index}";
+        var legacyName = $"requirementImage[{index}]";
+        return Request.Form.Files
+            .Where(file => string.Equals(file.Name, currentName, StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(file.Name, legacyName, StringComparison.OrdinalIgnoreCase))
+            .Where(file => file.Length > 0)
+            .ToList();
+    }
+
+    private static List<string> GetRequirementImagePaths(RequirementEntry requirement)
+    {
+        if (!string.IsNullOrWhiteSpace(requirement.ImagePathsJson))
+        {
+            try
+            {
+                var imagePaths = System.Text.Json.JsonSerializer.Deserialize<List<string>>(requirement.ImagePathsJson);
+                if (imagePaths is { Count: > 0 })
+                    return imagePaths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(requirement.ImagePath)
+            ? new List<string>()
+            : new List<string> { requirement.ImagePath };
+    }
+
+    private static bool TryParseRequirementImage(string data, out string extension, out byte[] bytes)
+    {
+        extension = ".jpg";
+        var rawData = data;
+        var commaIndex = rawData.IndexOf(',');
+        if (commaIndex >= 0)
+        {
+            var header = rawData[..commaIndex];
+            rawData = rawData[(commaIndex + 1)..];
+            if (header.Contains("image/png", StringComparison.OrdinalIgnoreCase))
+                extension = ".png";
+            else if (header.Contains("image/webp", StringComparison.OrdinalIgnoreCase))
+                extension = ".webp";
+            else if (header.Contains("image/gif", StringComparison.OrdinalIgnoreCase))
+                extension = ".gif";
+        }
+
+        try
+        {
+            bytes = Convert.FromBase64String(rawData);
+            return bytes.Length > 0;
+        }
+        catch (FormatException)
+        {
+            bytes = Array.Empty<byte>();
+            return false;
+        }
     }
 
     /// <summary>Deletes a requirement entry from a lead.</summary>

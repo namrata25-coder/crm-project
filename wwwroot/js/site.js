@@ -204,6 +204,104 @@ function toggleRequirementForm() {
   el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
 }
 
+function resetRequirementForm() {
+  const form = document.getElementById('requirementForm');
+  const tbody = document.getElementById('requirementItemsTbody');
+  if (form) form.reset();
+  if (tbody) tbody.innerHTML = '';
+  renumberRequirementItems();
+
+  const heading = document.getElementById('requirementFormHeading');
+  const saveButton = document.getElementById('saveRequirementButton');
+  const addItemButton = document.getElementById('addRequirementItemBtn');
+  if (heading) heading.textContent = 'Basic Requirement Details';
+  if (saveButton) saveButton.innerHTML = '<i class="bi bi-check-lg"></i> Save Requirement';
+  if (addItemButton) addItemButton.style.display = '';
+}
+
+function startNewRequirement() {
+  resetRequirementForm();
+  const formContainer = document.getElementById('addRequirementForm');
+  if (formContainer) formContainer.style.display = 'block';
+  switchLeadTab('requirement');
+}
+
+function cancelRequirementEdit() {
+  resetRequirementForm();
+  const formContainer = document.getElementById('addRequirementForm');
+  if (formContainer) formContainer.style.display = 'none';
+}
+
+function editRequirementItem(button) {
+  const form = document.getElementById('requirementForm');
+  const formContainer = document.getElementById('addRequirementForm');
+  if (!form || !formContainer) return;
+
+  resetRequirementForm();
+  formContainer.style.display = 'block';
+  switchLeadTab('requirement');
+  addRequirementItem();
+
+  const row = document.querySelector('#requirementItemsTbody .req-item-row');
+  if (!row) return;
+
+  const data = button.dataset;
+  const editId = document.getElementById('editRequirementId');
+  if (editId) editId.value = data.reqId || '';
+
+  const setValue = (name, value) => {
+    const field = form.querySelector(`[name="${name}"]`);
+    if (field) field.value = value || '';
+  };
+  setValue('title', data.title);
+  setValue('description', data.description);
+  setValue('priority', data.priority || 'Medium');
+  setValue('status', data.status || 'New');
+  setValue('expectedDate', data.expectedDate);
+  setValue('budget', data.budget);
+
+  const category = row.querySelector('[name="category"]');
+  if (category) {
+    const categoryExists = Array.from(category.options).some(option => option.value === (data.category || ''));
+    if (!categoryExists && data.category) category.add(new Option(data.category, data.category));
+    category.value = data.category || '';
+  }
+
+  [
+    'item', 'location', 'h1', 'h2', 'h3', 'w1', 'w2', 'w3',
+    'types', 'topology', 'glass', 'quantity', 'areaCharge', 'amount'
+  ].forEach(name => {
+    const field = row.querySelector(`[name="${name}"]`);
+    const dataName = name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+    if (field) field.value = data[dataName] || '';
+  });
+
+  const existingImageCount = Number(data.imageCount) || 0;
+  row.dataset.existingImageCount = String(existingImageCount);
+  row.dataset.existingImagePath = data.imagePath || '';
+  const previewBox = row.querySelector('.req-img-preview-box');
+  const thumbImg = row.querySelector('.req-thumb-img');
+  const imageCount = row.querySelector('.req-image-count');
+  const removeImageButton = row.querySelector('.req-img-remove-btn');
+  if (existingImageCount > 0) {
+    if (thumbImg && data.imagePath) thumbImg.src = data.imagePath;
+    if (previewBox) previewBox.style.display = 'inline-flex';
+    if (imageCount) imageCount.textContent = `${existingImageCount} existing photo${existingImageCount === 1 ? '' : 's'} retained`;
+    if (removeImageButton) {
+      removeImageButton.style.display = 'none';
+      removeImageButton.title = 'Remove newly selected photos';
+    }
+  }
+
+  const heading = document.getElementById('requirementFormHeading');
+  const saveButton = document.getElementById('saveRequirementButton');
+  const addItemButton = document.getElementById('addRequirementItemBtn');
+  if (heading) heading.textContent = 'Edit Requirement Item';
+  if (saveButton) saveButton.innerHTML = '<i class="bi bi-check-lg"></i> Update Requirement';
+  if (addItemButton) addItemButton.style.display = 'none';
+  formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // Dynamic Requirement Items in Table Format
 function createRequirementCategorySelect() {
   const select = document.createElement('select');
@@ -285,9 +383,9 @@ function addRequirementItem() {
         </button>
 
         <!-- 2. Separate Upload Photo Option -->
-        <label class="req-file-label req-upload-btn" title="Upload Photo (JPG, JPEG, PNG, WEBP)">
+        <label class="req-file-label req-upload-btn" title="Upload Photos (JPG, JPEG, PNG, WEBP, GIF)">
           <i class="bi bi-cloud-arrow-up-fill"></i> <span class="req-file-text">Upload</span>
-          <input type="file" class="req-file-input" accept=".jpg,.jpeg,.png,.webp,.gif" onchange="handleReqImageSelect(this)" style="display:none;" />
+          <input type="file" class="req-file-input" accept=".jpg,.jpeg,.png,.webp,.gif" multiple onchange="handleReqImageSelect(this)" style="display:none;" />
         </label>
 
         <!-- Hidden input for base64 / captured camera image -->
@@ -296,7 +394,8 @@ function addRequirementItem() {
         <!-- 3. Small Image Preview Thumbnail & Remove/Change controls -->
         <div class="req-img-preview-box" style="display:none;">
           <img src="" alt="Preview" class="req-thumb-img" onclick="previewRequirementFullImg(this.src)" title="Click to view full preview" />
-          <button type="button" class="req-img-remove-btn" title="Remove selected image" onclick="removeRequirementImage(this)">
+          <span class="req-image-count" style="font-size:11px;color:var(--ink-600);"></span>
+          <button type="button" class="req-img-remove-btn" title="Remove selected images" onclick="removeRequirementImage(this)">
             <i class="bi bi-x"></i>
           </button>
         </div>
@@ -357,15 +456,40 @@ function handleReqImageSelect(input) {
   const previewBox = row.querySelector('.req-img-preview-box');
   const thumbImg = row.querySelector('.req-thumb-img');
   const dataInput = row.querySelector('.req-image-data');
+  const imageCount = row.querySelector('.req-image-count');
+  const files = Array.from(input.files || []);
+  const maxImages = 10;
+  const maxImageSize = 10 * 1024 * 1024;
+  const maxTotalSize = 25 * 1024 * 1024;
+  const existingImageCount = Number(row.dataset.existingImageCount) || 0;
 
-  if (input.files && input.files.length > 0) {
-    const file = input.files[0];
-    const fileName = file.name;
-    const ext = fileName.split('.').pop().toLowerCase();
+  if (files.length > 0) {
+    const cameraImageCount = dataInput && dataInput.value ? 1 : 0;
+    const totalSize = files.reduce((total, file) => total + file.size, 0);
+    if (existingImageCount + files.length + cameraImageCount > maxImages) {
+      alert('You can attach up to 10 images to each item.');
+      input.value = '';
+      return;
+    }
+    if (files.some(file => file.size > maxImageSize)) {
+      alert('Each image must be 10 MB or smaller.');
+      input.value = '';
+      return;
+    }
+    if (totalSize > maxTotalSize) {
+      alert('Images for each item must total 25 MB or less.');
+      input.value = '';
+      return;
+    }
+
+    const file = files[0];
     const validExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
-    if (!validExts.includes(ext) && !file.type.startsWith('image/')) {
-      alert('Please select a valid image format (JPG, JPEG, PNG, or WEBP).');
+    if (files.some(selectedFile => {
+      const selectedExt = selectedFile.name.split('.').pop().toLowerCase();
+      return !validExts.includes(selectedExt);
+    })) {
+      alert('Please select valid image formats (JPG, JPEG, PNG, WEBP, or GIF).');
       input.value = '';
       return;
     }
@@ -374,11 +498,15 @@ function handleReqImageSelect(input) {
     reader.onload = function (e) {
       const dataUrl = e.target.result;
       if (thumbImg) thumbImg.src = dataUrl;
-      if (dataInput) dataInput.value = dataUrl;
       if (previewBox) previewBox.style.display = 'inline-flex';
+      if (imageCount) imageCount.textContent = existingImageCount > 0
+        ? `${existingImageCount} existing + ${files.length + cameraImageCount} new`
+        : `${files.length + cameraImageCount} selected`;
+      const removeImageButton = row.querySelector('.req-img-remove-btn');
+      if (removeImageButton) removeImageButton.style.display = 'inline-flex';
       if (uploadLabel) {
         uploadLabel.classList.add('has-file');
-        uploadLabel.title = fileName;
+        uploadLabel.title = `${files.length} photo${files.length === 1 ? '' : 's'} selected`;
       }
     };
     reader.readAsDataURL(file);
@@ -395,15 +523,27 @@ function removeRequirementImage(btn) {
   const dataInput = row.querySelector('.req-image-data');
   const camBtn = row.querySelector('.req-cam-btn');
   const uploadBtn = row.querySelector('.req-upload-btn');
+  const imageCount = row.querySelector('.req-image-count');
+  const removeImageButton = row.querySelector('.req-img-remove-btn');
 
   if (thumbImg) thumbImg.src = '';
-  if (previewBox) previewBox.style.display = 'none';
   if (fileInput) fileInput.value = '';
   if (dataInput) dataInput.value = '';
   if (camBtn) camBtn.classList.remove('has-file');
   if (uploadBtn) {
     uploadBtn.classList.remove('has-file');
-    uploadBtn.title = 'Upload Photo (JPG, JPEG, PNG, WEBP)';
+    uploadBtn.title = 'Upload Photos (JPG, JPEG, PNG, WEBP, GIF)';
+  }
+  const existingImageCount = Number(row.dataset.existingImageCount) || 0;
+  if (existingImageCount > 0) {
+    if (thumbImg && row.dataset.existingImagePath) thumbImg.src = row.dataset.existingImagePath;
+    if (previewBox) previewBox.style.display = 'inline-flex';
+    if (imageCount) imageCount.textContent = `${existingImageCount} existing photo${existingImageCount === 1 ? '' : 's'} retained`;
+    if (removeImageButton) removeImageButton.style.display = 'none';
+  } else {
+    if (previewBox) previewBox.style.display = 'none';
+    if (imageCount) imageCount.textContent = '';
+    if (removeImageButton) removeImageButton.style.display = '';
   }
 }
 
@@ -551,25 +691,34 @@ function useCapturedReqPhoto() {
 
   // Set hidden data input for base64 submission
   const dataInput = activeReqRowForCamera.querySelector('.req-image-data');
+  const fileInput = activeReqRowForCamera.querySelector('.req-file-input');
+  const existingImageCount = Number(activeReqRowForCamera.dataset.existingImageCount) || 0;
+  const uploadedImageCount = fileInput ? fileInput.files.length : 0;
+  if (existingImageCount + uploadedImageCount + 1 > 10) {
+    alert('You can attach up to 10 images to each item.');
+    return;
+  }
   if (dataInput) {
     dataInput.value = capturedCameraDataUrl;
-  }
-
-  // Clear file input so base64 takes precedence
-  const fileInput = activeReqRowForCamera.querySelector('.req-file-input');
-  if (fileInput) {
-    fileInput.value = '';
   }
 
   // Set thumbnail preview
   const thumbImg = activeReqRowForCamera.querySelector('.req-thumb-img');
   const previewBox = activeReqRowForCamera.querySelector('.req-img-preview-box');
+  const imageCount = activeReqRowForCamera.querySelector('.req-image-count');
+  const removeImageButton = activeReqRowForCamera.querySelector('.req-img-remove-btn');
   if (thumbImg) {
     thumbImg.src = capturedCameraDataUrl;
   }
   if (previewBox) {
     previewBox.style.display = 'inline-flex';
   }
+  if (imageCount) {
+    imageCount.textContent = existingImageCount > 0
+      ? `${existingImageCount} existing + ${uploadedImageCount + 1} new`
+      : `${uploadedImageCount + 1} selected`;
+  }
+  if (removeImageButton) removeImageButton.style.display = 'inline-flex';
 
   const camBtn = activeReqRowForCamera.querySelector('.req-cam-btn');
   if (camBtn) camBtn.classList.add('has-file');

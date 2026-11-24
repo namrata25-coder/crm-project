@@ -119,7 +119,94 @@ versa). CORS is enabled for all origins in `Program.cs` so any frontend
 | POST | `/api/leads/{id}/visits/upload` | Log a visit with up to 10 photos (`multipart/form-data`, bearer token or cookie session with anti-forgery token) |
 | POST | `/api/leads/{id}/requirements` | Add a requirement, JSON only, no image (`AddRequirementRequest`) |
 | POST | `/api/leads/{id}/requirements/upload` | Add a requirement with an optional image (`multipart/form-data`) |
+| PUT | `/api/leads/{id}/requirements/{requirementId}` | Replace requirement fields with JSON; existing images are preserved |
 | POST | `/api/leads/{id}/assign` | Assign / re-assign the lead (`AssignLeadRequest`) |
+
+#### Update a requirement
+
+Send a complete JSON body. This endpoint preserves existing images and does not
+upload or remove image files. The multipart `POST /api/leads/{id}/requirements/upload`
+endpoint creates a new requirement with an optional image.
+
+```http
+PUT /api/leads/LD-1001/requirements/12 HTTP/1.1
+Authorization: Bearer YOUR_ACCESS_TOKEN
+Content-Type: application/json
+Accept: application/json
+```
+
+```json
+{
+  "title": "Living room window",
+  "description": "Updated measurements",
+  "priority": "High",
+  "expectedDate": "2026-12-15",
+  "budget": "85000",
+  "status": "In Progress",
+  "category": "Windows",
+  "item": "UPVC Sliding Window",
+  "location": "Living room",
+  "h1": "1200",
+  "h2": "1180",
+  "h3": "",
+  "w1": "1500",
+  "w2": "1480",
+  "w3": "",
+  "types": "Sliding",
+  "topology": "",
+  "glass": "Toughened",
+  "quantity": "2",
+  "areaCharge": "38.75",
+  "amount": "85000",
+  "details": "Customer requested white frame",
+  "remarks": "Confirm final dimensions during site visit"
+}
+```
+
+Successful response (`200 OK`):
+
+```json
+{
+  "success": true,
+  "message": "Requirement updated successfully",
+  "leadId": "LD-1001",
+  "requirement": {
+    "id": 12,
+    "title": "Living room window",
+    "description": "Updated measurements",
+    "priority": "High",
+    "expectedDate": "2026-12-15",
+    "budget": "85000",
+    "status": "In Progress",
+    "imagePath": "/uploads/requirements/existing-photo.jpg",
+    "imagePathsJson": "[\"/uploads/requirements/existing-photo.jpg\"]",
+    "category": "Windows",
+    "categoryId": null,
+    "item": "UPVC Sliding Window",
+    "itemId": null,
+    "location": "Living room",
+    "h1": "1200",
+    "h2": "1180",
+    "h3": "",
+    "w1": "1500",
+    "w2": "1480",
+    "w3": "",
+    "types": "Sliding",
+    "typeId": null,
+    "topology": "",
+    "topologyId": null,
+    "glass": "Toughened",
+    "glassId": null,
+    "requirementType": "Windows",
+    "itemName": "UPVC Sliding Window",
+    "quantity": "2",
+    "areaCharge": "38.75",
+    "amount": "85000",
+    "details": "Customer requested white frame",
+    "remarks": "Confirm final dimensions during site visit"
+  }
+}
+```
 
 #### Upload a visit with multiple photos
 

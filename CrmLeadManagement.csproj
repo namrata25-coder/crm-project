@@ -41,7 +41,6 @@
       <_OldFiles Include="Migrations\2026100*.cs" />
       <_OldFiles Include="Migrations\20261012*.cs" />
       <_OldFiles Include="Controllers\Api\AppLeadsController.cs" />
-      <_OldFiles Include="wwwroot\uploads\requirements\*.png" />
     </ItemGroup>
     <Delete Files="@(_OldFiles)" />
     <RemoveDir Directories="$(MSBuildProjectDirectory)\..\.history;$(MSBuildProjectDirectory)\.history" />
