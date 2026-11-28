@@ -54,6 +54,7 @@ public class SettingsController : Controller
         {
             Statuses = SettingsStore.Statuses,
             Sources = SettingsStore.Sources,
+            RequirementTypes = SettingsStore.RequirementTypes,
             RequirementCategories = SettingsStore.RequirementCategories,
             Users = SettingsStore.Users,
             Taxes = SettingsStore.Taxes,
@@ -112,6 +113,32 @@ public class SettingsController : Controller
 
         SettingsStore.RemoveSource(source);
         return RedirectToFragment("lead-sources");
+    }
+
+    [HttpPost]
+    public IActionResult AddRequirementType(string newType)
+    {
+        if (!IsAdminPanelUser())
+        {
+            TempData["ErrorMessage"] = "Access Denied: Only administrators can manage requirement types.";
+            return RedirectToFragment("requirement-types");
+        }
+
+        SettingsStore.AddRequirementType(newType);
+        return RedirectToFragment("requirement-types");
+    }
+
+    [HttpPost]
+    public IActionResult RemoveRequirementType(string type)
+    {
+        if (!IsAdminPanelUser())
+        {
+            TempData["ErrorMessage"] = "Access Denied: Only administrators can manage requirement types.";
+            return RedirectToFragment("requirement-types");
+        }
+
+        SettingsStore.RemoveRequirementType(type);
+        return RedirectToFragment("requirement-types");
     }
 
     [HttpPost]

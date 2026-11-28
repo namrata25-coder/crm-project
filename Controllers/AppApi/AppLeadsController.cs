@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using CrmLeadManagement.Models;
 using CrmLeadManagement.Models.Dtos;
 using CrmLeadManagement.Models.Dtos.App;
@@ -584,7 +586,70 @@ public class AppLeadsController : ControllerBase
                 AppApiErrorResponse.Fail("You do not have permission to view this lead."));
         }
 
-        return Ok(lead);
+        return await WriteLeadMultipartResponseAsync(lead);
+    }
+
+    private async Task<IActionResult> WriteLeadMultipartResponseAsync(Lead lead)
+    {
+        using var multipart = new MultipartContent("mixed");
+        var leadJson = JsonSerializer.Serialize(lead, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = null,
+            ReferenceHandler = ReferenceHandler.IgnoreCycles
+        });
+        var leadContent = new StringContent(leadJson, Encoding.UTF8, "application/json");
+        leadContent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
+        {
+            Name = "lead",
+            FileName = "lead.json"
+        };
+        multipart.Add(leadContent);
+
+        foreach (var requirement in lead.Requirements.OrderBy(requirement => requirement.Id))
+        {
+            var imagePaths = requirement.ImagePaths;
+            for (var index = 0; index < imagePaths.Count; index++)
+            {
+                var imagePath = imagePaths[index];
+                var fileName = Path.GetFileName(imagePath);
+                if (string.IsNullOrWhiteSpace(fileName) ||
+                    !string.Equals(imagePath, $"/uploads/requirements/{fileName}", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Requirement '{requirement.Id}' contains an invalid image path.");
+                }
+
+                var physicalPath = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements", fileName);
+                var fileStream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var imageContent = new StreamContent(fileStream);
+                imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    GetRequirementImageContentType(fileName));
+                imageContent.Headers.ContentDisposition =
+                    new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
+                    {
+                        Name = $"requirement_{requirement.Id}_image_{index + 1}",
+                        FileName = fileName
+                    };
+                multipart.Add(imageContent);
+            }
+        }
+
+        Response.StatusCode = StatusCodes.Status200OK;
+        Response.ContentType = multipart.Headers.ContentType?.ToString() ?? "multipart/mixed";
+        await multipart.CopyToAsync(Response.Body, HttpContext.RequestAborted);
+        return new EmptyResult();
+    }
+
+    private static string GetRequirementImageContentType(string fileName)
+    {
+        return Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
     }
 
     /// <summary>
@@ -1605,6 +1670,216 @@ public class AppLeadsController : ControllerBase
             _logger.LogWarning(ex, "Invalid requirement image data ignored.");
             return "";
         }
+    }
+
+    /// <summary>
+    /// Updates one requirement item.
+    /// Route: PUT /api/v1/app/leads/{id}/requirements/{reqId}
+    /// </summary>
+    [HttpPut("{id}/requirements/{reqId:int}")]
+    [Consumes("application/json")]
+    public Task<IActionResult> UpdateRequirement(string id, int reqId, [FromBody] AppRequirementInputDto input)
+        => UpdateRequirementCoreAsync(id, reqId, input);
+
+    [HttpPut("{id}/requirements/{reqId:int}")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    public async Task<IActionResult> UpdateRequirementMultipart(string id, int reqId, [FromForm] AppRequirementInputDto input)
+    {
+        var hasBearerIdentity = User.Identities.Any(identity =>
+            identity.IsAuthenticated &&
+            string.Equals(identity.AuthenticationType, BearerTokenAuthenticationHandler.SchemeName, StringComparison.Ordinal));
+        if (!hasBearerIdentity && !await _antiforgery.IsRequestValidAsync(HttpContext))
+        {
+            return BadRequest(AppApiErrorResponse.Fail(
+                "A valid anti-forgery token is required for cookie-authenticated requests."));
+        }
+
+        return await UpdateRequirementCoreAsync(id, reqId, input);
+    }
+
+    private async Task<IActionResult> UpdateRequirementCoreAsync(string id, int reqId, AppRequirementInputDto input)
+    {
+        var savedImagePaths = new List<string>();
+        try
+        {
+            var lead = await FindLeadAsync(id);
+            if (lead == null)
+            {
+                return NotFound(AppApiErrorResponse.Fail($"Lead '{id}' not found."));
+            }
+
+            var (currentUser, role, isSalesExec) = await IdentifyRequestUserAsync();
+            if (isSalesExec && !IsLeadAssignedToUser(lead, currentUser))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    AppApiErrorResponse.Fail("You do not have permission to access this lead."));
+            }
+
+            var requirement = lead.Requirements.FirstOrDefault(r => r.Id == reqId);
+            if (requirement == null)
+            {
+                return NotFound(AppApiErrorResponse.Fail(
+                    $"Requirement with ID '{reqId}' not found."));
+            }
+
+            var row = input?.Items?.FirstOrDefault(i => i != null);
+            if (row != null)
+            {
+                string T(string? value) => value?.Trim() ?? "";
+                var cat = T(row.Category);
+                var itm = T(row.Item);
+                var loc = T(row.Location);
+                var h1 = T(row.H1); var h2 = T(row.H2); var h3 = T(row.H3);
+                var w1 = T(row.W1); var w2 = T(row.W2); var w3 = T(row.W3);
+                var typ = T(row.Types);
+                var gls = T(row.Glass);
+                var top = T(row.Topology);
+                var qty = T(row.Quantity);
+                var areaCharge = T(row.AreaCharge);
+                var amount = T(row.Amount);
+                var uploadedImages = row.Images?.Where(image => image.Length > 0).ToList()
+                    ?? new List<IFormFile>();
+                var hasBase64Image = !string.IsNullOrWhiteSpace(row.ImageBase64);
+
+                var imageValidationError = ValidateRequirementImages(uploadedImages, hasBase64Image);
+                if (imageValidationError != null)
+                    return BadRequest(AppApiErrorResponse.Fail(imageValidationError));
+
+                var hasMasterIds = row.CategoryId.HasValue || row.ItemId.HasValue ||
+                                   row.TypeId.HasValue || row.TopologyId.HasValue || row.GlassId.HasValue;
+                if (hasMasterIds)
+                {
+                    var resolution = await _masterDataService.ResolveRequirementSelectionsAsync(
+                        new[]
+                        {
+                            new RequirementMasterSelectionIds(
+                                row.CategoryId, row.ItemId, row.TypeId, row.TopologyId, row.GlassId)
+                        },
+                        HttpContext.RequestAborted);
+                    if (!resolution.IsValid)
+                        return BadRequest(AppApiErrorResponse.Fail(
+                            resolution.Error ?? "Invalid requirement master selection."));
+
+                    cat = resolution.Items[0].Category;
+                    itm = resolution.Items[0].Item;
+                    typ = resolution.Items[0].Type;
+                    top = resolution.Items[0].Topology;
+                    gls = resolution.Items[0].Glass;
+                }
+
+                var existingPaths = GetRequirementImagePaths(requirement);
+                var newImagePaths = await SaveRequirementImagesAsync(uploadedImages, row.ImageBase64);
+                savedImagePaths.AddRange(newImagePaths);
+
+                if (existingPaths.Count + newImagePaths.Count > 10)
+                {
+                    DeleteRequirementImages(savedImagePaths);
+                    return BadRequest(AppApiErrorResponse.Fail(
+                        "You can attach up to 10 photos to each requirement item."));
+                }
+
+                var allImagePaths = existingPaths.Concat(newImagePaths).Distinct().ToList();
+                requirement.Category = cat;
+                requirement.CategoryId = row.CategoryId;
+                requirement.Item = itm;
+                requirement.ItemId = row.ItemId;
+                requirement.Location = loc;
+                requirement.H1 = h1;
+                requirement.H2 = h2;
+                requirement.H3 = h3;
+                requirement.W1 = w1;
+                requirement.W2 = w2;
+                requirement.W3 = w3;
+                requirement.Types = typ;
+                requirement.TypeId = row.TypeId;
+                requirement.Topology = top;
+                requirement.TopologyId = row.TopologyId;
+                requirement.Glass = gls;
+                requirement.GlassId = row.GlassId;
+                requirement.Quantity = string.IsNullOrWhiteSpace(qty) ? "1" : qty;
+                requirement.AreaCharge = areaCharge;
+                requirement.Amount = amount;
+                requirement.ItemName = itm;
+                requirement.RequirementType = cat;
+                requirement.ImagePath = allImagePaths.FirstOrDefault() ?? "";
+                requirement.ImagePathsJson = JsonSerializer.Serialize(allImagePaths);
+
+                var descParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(loc)) descParts.Add($"Location: {loc}");
+                var hParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(h1)) hParts.Add($"H1: {h1}");
+                if (!string.IsNullOrWhiteSpace(h2)) hParts.Add($"H2: {h2}");
+                if (!string.IsNullOrWhiteSpace(h3)) hParts.Add($"H3: {h3}");
+                if (hParts.Count > 0) descParts.Add($"Height: {string.Join(", ", hParts)}");
+                var wParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(w1)) wParts.Add($"W1: {w1}");
+                if (!string.IsNullOrWhiteSpace(w2)) wParts.Add($"W2: {w2}");
+                if (!string.IsNullOrWhiteSpace(w3)) wParts.Add($"W3: {w3}");
+                if (wParts.Count > 0) descParts.Add($"Width: {string.Join(", ", wParts)}");
+                if (!string.IsNullOrWhiteSpace(typ)) descParts.Add($"Types: {typ}");
+                if (!string.IsNullOrWhiteSpace(gls)) descParts.Add($"Glass: {gls}");
+                if (!string.IsNullOrWhiteSpace(top)) descParts.Add($"Topology: {top}");
+                requirement.Details = string.Join(" | ", descParts);
+            }
+
+            requirement.Title = input?.Title?.Trim() ?? requirement.Title;
+            requirement.Description = input?.Description?.Trim() ?? requirement.Description;
+            requirement.Priority = !string.IsNullOrWhiteSpace(input?.Priority)
+                ? input.Priority.Trim()
+                : requirement.Priority;
+            requirement.ExpectedDate = input?.ExpectedDate?.Trim() ?? requirement.ExpectedDate;
+            requirement.Budget = input?.Budget?.Trim() ?? requirement.Budget;
+            requirement.Status = !string.IsNullOrWhiteSpace(input?.Status)
+                ? input.Status.Trim()
+                : requirement.Status;
+            requirement.Remarks = input?.Remarks?.Trim() ?? requirement.Remarks;
+
+            if (row == null)
+            {
+                requirement.RequirementType = input?.RequirementType?.Trim() ?? requirement.RequirementType;
+                requirement.ItemName = input?.ItemName?.Trim() ?? requirement.ItemName;
+                requirement.Quantity = input?.Quantity?.Trim() ?? requirement.Quantity;
+                requirement.AreaCharge = input?.AreaCharge?.Trim() ?? requirement.AreaCharge;
+                requirement.Amount = input?.Amount?.Trim() ?? requirement.Amount;
+                requirement.Details = input?.Details?.Trim() ?? requirement.Details;
+            }
+
+            await _db.SaveChangesAsync();
+            savedImagePaths.Clear();
+
+            return Ok(AppApiResponse<AppRequirementResponseDto>.Ok(
+                AppRequirementResponseDto.FromEntity(requirement),
+                "Requirement updated successfully."));
+        }
+        catch (Exception ex)
+        {
+            DeleteRequirementImages(savedImagePaths);
+            _logger.LogError(ex, "Failed to update requirement '{ReqId}' for lead '{LeadId}'.", reqId, id);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                AppApiErrorResponse.Fail("An error occurred while updating the requirement."));
+        }
+    }
+
+    private static List<string> GetRequirementImagePaths(RequirementEntry requirement)
+    {
+        var paths = new List<string>();
+        if (!string.IsNullOrWhiteSpace(requirement.ImagePathsJson))
+        {
+            try
+            {
+                paths = JsonSerializer.Deserialize<List<string>>(requirement.ImagePathsJson)?
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Distinct()
+                    .ToList() ?? new List<string>();
+            }
+            catch (JsonException)
+            {
+            }
+        }
+        if (paths.Count == 0 && !string.IsNullOrWhiteSpace(requirement.ImagePath))
+            paths.Add(requirement.ImagePath);
+        return paths;
     }
 
 

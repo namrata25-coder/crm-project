@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+
 namespace CrmLeadManagement.Models;
 
 public class Lead
@@ -96,6 +99,29 @@ public class RequirementEntry
     public string? Status { get; set; } = "New";
     public string? ImagePath { get; set; } = ""; // relative path under wwwroot, e.g. /uploads/requirements/xyz.jpg
     public string? ImagePathsJson { get; set; } = "[]";
+    [NotMapped]
+    public List<string> ImagePaths
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(ImagePathsJson))
+            {
+                try
+                {
+                    var paths = JsonSerializer.Deserialize<List<string>>(ImagePathsJson)?
+                        .Where(path => !string.IsNullOrWhiteSpace(path))
+                        .ToList();
+                    if (paths is { Count: > 0 })
+                        return paths;
+                }
+                catch (JsonException)
+                {
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(ImagePath) ? new List<string>() : new List<string> { ImagePath };
+        }
+    }
 
     // Item specifications (same parameters as web panel table)
     public string? Category { get; set; } = "";

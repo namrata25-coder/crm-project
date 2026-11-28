@@ -10,20 +10,6 @@
     var latestCall = lead.CallHistory.Count > 0 ? lead.CallHistory[^1] : null;
     var latestFollowUp = lead.FollowUps.Count > 0 ? lead.FollowUps[^1] : null;
     var latestVisit = lead.Visits.Count > 0 ? lead.Visits[^1] : null;
-    (string Label, string Value)[] RequirementDimensions(params (string Label, string? Value)[] values) =>
-        values.Where(value => !string.IsNullOrWhiteSpace(value.Value))
-            .Select(value => (value.Label, value.Value!))
-            .ToArray();
-    string RequirementCurrency(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return "—";
-
-        var normalized = raw.Trim().Replace("₹", "").Replace(",", "");
-        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)
-            ? amount.ToString("C2", CultureInfo.GetCultureInfo("en-IN"))
-            : raw;
-    }
 }
 
 <div class="breadcrumb-row">
@@ -220,17 +206,19 @@
                 <div class="form-error-banner"><i class="bi bi-exclamation-triangle-fill"></i> @requirementError</div>
             }
 
-            <div id="addRequirementForm" class="req-add-form" style="display:none;">
-                <form id="requirementForm" method="post" asp-controller="Lead" asp-action="AddRequirement" enctype="multipart/form-data">
+            <div id="addRequirementForm" class="req-add-form" style="display:none;background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px;">
+                <form id="requirementForm" method="post" asp-controller="Lead" asp-action="AddRequirement">
                     <input type="hidden" name="leadId" value="@lead.LeadId" />
                     <input type="hidden" id="editRequirementId" name="reqId" value="" />
-
                     <input type="hidden" name="itemizedRequirement" value="true" />
-                    <div id="requirementFormHeading" style="font-weight:700;font-size:15px;color:var(--ink-800);margin-bottom:12px;">Basic Requirement Details</div>
+
+                    <div id="requirementFormHeading" style="font-weight:700;font-size:15px;color:var(--ink-800);margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+                        <i class="bi bi-clipboard-plus" style="color:var(--brand-600);"></i> Add Requirement
+                    </div>
                     <div class="form-grid">
                         <div class="form-field">
                             <label>Priority</label>
-                            <select name="priority">
+                            <select name="priority" id="reqPrioritySelect">
                                 @foreach (var p in LookupData.Priorities)
                                 {
                                     <option value="@p" selected="@(p == "Medium")">@p</option>
@@ -239,83 +227,77 @@
                         </div>
                         <div class="form-field">
                             <label>Status</label>
-                            <select name="status">
+                            <select name="status" id="reqStatusSelect">
                                 @foreach (var s in LookupData.RequirementStatuses)
                                 {
                                     <option value="@s" selected="@(s == "New")">@s</option>
                                 }
                             </select>
                         </div>
-                        <div class="form-field full">
-                            <label>Requirement Title / Subject</label>
-                            <input type="text" name="title" placeholder="e.g., UPVC Windows &amp; Doors Project" />
-                        </div>
                         <div class="form-field">
                             <label>Expected Date</label>
-                            <input type="date" name="expectedDate" />
+                            <input type="date" name="expectedDate" id="reqExpectedDateInput" />
                         </div>
                         <div class="form-field">
                             <label>Budget</label>
-                            <input type="text" name="budget" placeholder="e.g., ₹1,50,000" />
+                            <input type="text" name="budget" id="reqBudgetInput" placeholder="e.g., ₹1,50,000" />
                         </div>
                         <div class="form-field full">
                             <label>Description / Remarks</label>
-                            <textarea name="description" rows="2" placeholder="General requirement overview or notes..."></textarea>
+                            <textarea name="description" id="reqDescInput" rows="2" placeholder="Enter requirement details, specifications or remarks..."></textarea>
                         </div>
                     </div>
 
-                    <div class="divider-line" style="margin:16px 0;"></div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-                        <div>
-                            <span style="font-weight:700;font-size:14px;color:var(--ink-800);">Item Specifications</span>
-                            <span style="font-size:12px;color:var(--ink-500);margin-left:8px;">(Add individual items in table format)</span>
-                            <div class="hint" style="margin-top:4px;">Category options are managed in Settings. Other item details are entered directly.</div>
+                    <!-- Horizontal Item Form: Category to Amount -->
+                    <div style="margin-top:20px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <div style="font-weight:700;font-size:14px;color:var(--ink-800);display:flex;align-items:center;gap:6px;">
+                                <i class="bi bi-boxes" style="color:var(--brand-600);"></i> Requirement Items
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="addRequirementItem()" style="display:inline-flex;align-items:center;gap:5px;">
+                                <i class="bi bi-plus-lg"></i> Add Item
+                            </button>
                         </div>
-                        <button type="button" id="addRequirementItemBtn" class="btn btn-primary btn-sm" onclick="addRequirementItem()">
-                            <i class="bi bi-plus-lg"></i> Add Item
-                        </button>
+
+                        <div style="overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:14px;">
+                            <table class="data-table" style="min-width:1300px;margin:0;font-size:12.5px;">
+                                <thead>
+                                    <tr style="background:#f8fafc;">
+                                        <th style="width:40px;text-align:center;">Sr.</th>
+                                        <th style="min-width:150px;">Category <span class="req">*</span></th>
+                                        <th style="min-width:150px;">Item <span class="req">*</span></th>
+                                        <th style="min-width:120px;">Location</th>
+                                        <th style="width:75px;">H1</th>
+                                        <th style="width:75px;">H2</th>
+                                        <th style="width:75px;">H3</th>
+                                        <th style="width:75px;">W1</th>
+                                        <th style="width:75px;">W2</th>
+                                        <th style="width:75px;">W3</th>
+                                        <th style="min-width:110px;">Types</th>
+                                        <th style="min-width:110px;">Topology</th>
+                                        <th style="min-width:110px;">Glass</th>
+                                        <th style="width:75px;">Qty</th>
+                                        <th style="width:95px;">Area (Sq.Ft)</th>
+                                        <th style="width:110px;">Amount</th>
+                                        <th style="width:50px;text-align:center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="requirementItemsTbody">
+                                    <!-- Populated by addRequirementItem() -->
+                                </tbody>
+                            </table>
+                            <div id="reqItemsEmptyHint" style="display:none;padding:16px;text-align:center;color:var(--ink-400);font-size:13px;">
+                                No items added yet. Click <strong>+ Add Item</strong> to add items.
+                            </div>
+                        </div>
                     </div>
-                    @if (LookupData.RequirementCategories.Count == 0)
-                    {
-                        <div class="form-error-banner" style="margin-bottom:12px;">No requirement categories are configured. Add a category in Settings before saving an item.</div>
-                    }
+
                     <template id="requirementCategoryOptions">
-                        @foreach (var category in LookupData.RequirementCategories)
+                        @foreach (var c in LookupData.RequirementCategories)
                         {
-                            <option value="@category">@category</option>
+                            <option value="@c">@c</option>
                         }
                     </template>
-                    <div class="table-wrap req-table-wrap" style="overflow-x:auto;margin-bottom:18px;border:1px solid var(--line);border-radius:10px;background:#fff;">
-                        <table class="data-table req-items-table" style="width:100%;min-width:1530px;border-collapse:collapse;margin:0;">
-                            <thead>
-                                <tr style="background:var(--ink-50,#f8fafc);border-bottom:1px solid var(--line);">
-                                    <th style="width:55px;text-align:center;font-size:12px;font-weight:700;padding:10px 6px;">S.No.</th>
-                                    <th style="min-width:130px;font-size:12px;font-weight:700;padding:10px 8px;">Category</th>
-                                    <th style="min-width:140px;font-size:12px;font-weight:700;padding:10px 8px;">Item</th>
-                                    <th style="min-width:120px;font-size:12px;font-weight:700;padding:10px 8px;">Location</th>
-                                    <th style="width:80px;min-width:75px;font-size:12px;font-weight:700;padding:10px 4px;text-align:center;">H1</th>
-                                    <th style="width:80px;min-width:75px;font-size:12px;font-weight:700;padding:10px 4px;text-align:center;">H2</th>
-                                    <th style="width:80px;min-width:75px;font-size:12px;font-weight:700;padding:10px 4px;text-align:center;">H3</th>
-                                    <th style="width:80px;min-width:75px;font-size:12px;font-weight:700;padding:10px 4px;text-align:center;">W1</th>
-                                    <th style="width:80px;min-width:75px;font-size:12px;font-weight:700;padding:10px 4px;text-align:center;">W2</th>
-                                    <th style="width:80px;min-width:75px;font-size:12px;font-weight:700;padding:10px 4px;text-align:center;">W3</th>
-                                    <th style="min-width:125px;font-size:12px;font-weight:700;padding:10px 8px;">Types</th>
-                                    <th style="min-width:115px;font-size:12px;font-weight:700;padding:10px 8px;">Topology</th>
-                                    <th style="min-width:130px;font-size:12px;font-weight:700;padding:10px 8px;">Glass</th>
-                                    <th style="width:110px;min-width:110px;font-size:12px;font-weight:700;padding:10px 6px;">QTY</th>
-                                    <th style="min-width:120px;font-size:12px;font-weight:700;padding:10px 8px;">Area (Sq.Ft) Charge</th>
-                                    <th style="min-width:120px;font-size:12px;font-weight:700;padding:10px 8px;">Amount</th>
-                                    <th style="min-width:180px;font-size:12px;font-weight:700;padding:10px 8px;text-align:center;">Photo / Image</th>
-                                    <th style="width:45px;text-align:center;padding:10px 4px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="requirementItemsTbody"></tbody>
-                        </table>
-                        <div id="reqItemsEmptyHint" style="padding:22px;text-align:center;color:var(--ink-400);font-size:13px;">
-                            <i class="bi bi-table" style="font-size:20px;display:block;margin-bottom:6px;color:var(--ink-300);"></i>
-                            No items added yet. Click <strong>"Add Item"</strong> to add item rows in table format.
-                        </div>
-                    </div>
 
                     <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
                         <button type="button" class="btn btn-outline" onclick="cancelRequirementEdit()">Cancel</button>
@@ -326,13 +308,30 @@
 
             <div class="divider-line"></div>
 
-            <div class="section-title" style="justify-content:space-between;">
-                <span>Saved Requirements</span>
+            <div class="section-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span>Saved Requirements</span>
+                    @if (lead.Requirements.Count > 0)
+                    {
+                        var totalCategories = lead.Requirements
+                            .Select(r => !string.IsNullOrWhiteSpace(r.Category) ? r.Category.Trim() : (!string.IsNullOrWhiteSpace(r.RequirementType) ? r.RequirementType.Trim() : "General"))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Count();
+                        <span class="badge" style="background:#f1f5f9;color:var(--ink-700);border:1px solid var(--line);font-size:12px;font-weight:600;">
+                            @totalCategories @(totalCategories == 1 ? "Category" : "Categories") · @lead.Requirements.Count @(lead.Requirements.Count == 1 ? "Item" : "Items")
+                        </span>
+                    }
+                </div>
                 @if (lead.Requirements.Count > 0)
                 {
-                    <a asp-controller="Lead" asp-action="RequirementDocument" asp-route-id="@lead.LeadId" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
-                        <i class="bi bi-file-earmark-text"></i> Full Page / Print
-                    </a>
+                    <div style="display:flex;gap:8px;">
+                        <a asp-controller="Lead" asp-action="RequirementDocument" asp-route-id="@lead.LeadId" asp-route-mode="full" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
+                            <i class="bi bi-file-earmark-text"></i> View All (Full Page)
+                        </a>
+                        <a asp-controller="Lead" asp-action="RequirementDocument" asp-route-id="@lead.LeadId" asp-route-mode="full" asp-route-print="true" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="color:#0369a1;border-color:#bae6fd;background:#f0f9ff;">
+                            <i class="bi bi-printer"></i> Print All
+                        </a>
+                    </div>
                 }
             </div>
             @if (lead.Requirements.Count == 0)
@@ -341,178 +340,215 @@
             }
             else
             {
-                var savedRequirements = lead.Requirements.AsEnumerable().Reverse().ToList();
-                <div class="table-wrap" style="overflow-x:auto;">
-                    <table class="data-table" style="min-width:1250px;">
-                        <thead>
-                            <tr>
-                                <th rowspan="2" style="width:50px;">Sr. No.</th>
-                                <th rowspan="2">Location</th>
-                                <th rowspan="2">Window Description</th>
-                                <th rowspan="2">GLASS</th>
-                                <th rowspan="2">QTY</th>
-                                <th colspan="2">Width (mm)</th>
-                                <th colspan="2">Height (mm)</th>
-                                <th rowspan="2">Area (Sq.Ft) Charge</th>
-                                <th rowspan="2">Amount</th>
-                            </tr>
-                            <tr>
-                                <th>W1 / W2 / W3</th>
-                                <th>Value</th>
-                                <th>H1 / H2 / H3</th>
-                                <th>Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (var index = 0; index < savedRequirements.Count; index++)
-                            {
-                                var item = savedRequirements[index];
-                                var category = !string.IsNullOrWhiteSpace(item.Category) ? item.Category : (!string.IsNullOrWhiteSpace(item.RequirementType) ? item.RequirementType : "General");
-                                var itemName = !string.IsNullOrWhiteSpace(item.ItemName) ? item.ItemName : item.Item;
-                                var widthValues = RequirementDimensions(("W1", item.W1), ("W2", item.W2), ("W3", item.W3));
-                                var heightValues = RequirementDimensions(("H1", item.H1), ("H2", item.H2), ("H3", item.H3));
-                                var windowDescription = string.Join(" / ", new[] { itemName, item.Types, item.Topology }
-                                    .Where(value => !string.IsNullOrWhiteSpace(value)));
-                                var hasStructuredDetails = !string.IsNullOrWhiteSpace(item.Location) ||
-                                                           widthValues.Length > 0 || heightValues.Length > 0 ||
-                                                           !string.IsNullOrWhiteSpace(item.Types) ||
-                                                           !string.IsNullOrWhiteSpace(item.Topology) ||
-                                                           !string.IsNullOrWhiteSpace(item.Glass);
-                                <tr>
-                                    <td style="text-align:center;">
-                                        <div>@(index + 1)</div>
-                                        <button type="button" class="icon-btn" style="border:none;background:transparent;color:var(--brand-600);cursor:pointer;"
-                                                title="Edit Requirement"
-                                                onclick="editRequirementItem(this)"
-                                                data-req-id="@item.Id"
-                                                data-category="@category"
-                                                data-item="@itemName"
-                                                data-location="@item.Location"
-                                                data-h1="@item.H1" data-h2="@item.H2" data-h3="@item.H3"
-                                                data-w1="@item.W1" data-w2="@item.W2" data-w3="@item.W3"
-                                                data-types="@item.Types" data-topology="@item.Topology" data-glass="@item.Glass"
-                                                data-quantity="@item.Quantity" data-area-charge="@item.AreaCharge" data-amount="@item.Amount"
-                                                data-priority="@item.Priority" data-status="@item.Status"
-                                                data-expected-date="@item.ExpectedDate" data-budget="@item.Budget"
-                                                data-title="@(string.IsNullOrWhiteSpace(item.Details) ? item.Title : item.Details)"
-                                                data-description="@item.Remarks"
-                                                data-image-count="@RequirementImagePaths(item).Count"
-                                                data-image-path="@RequirementImagePaths(item).FirstOrDefault()">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-                                        <form method="post" asp-controller="Lead" asp-action="DeleteRequirement" onsubmit="return confirm('Delete this requirement?');" style="display:inline;">
-                                            <input type="hidden" name="leadId" value="@lead.LeadId" />
-                                            <input type="hidden" name="reqId" value="@item.Id" />
-                                            <button type="submit" class="icon-btn" style="border:none;background:transparent;color:var(--danger, #ef4444);cursor:pointer;" title="Delete Requirement">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                    <td>@(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location)</td>
-                                    <td>
-                                        <div class="cell-primary">@(string.IsNullOrWhiteSpace(windowDescription) ? item.Title : windowDescription)</div>
-                                        @if (!string.IsNullOrWhiteSpace(category))
-                                        {
-                                            <div class="hint">@category</div>
-                                        }
-                                        @if (!hasStructuredDetails && !string.IsNullOrWhiteSpace(item.Description))
-                                        {
-                                            <div class="hint">@item.Description</div>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(item.Budget) ||
-                                             !string.IsNullOrWhiteSpace(item.ExpectedDate) ||
-                                             !string.IsNullOrWhiteSpace(item.Priority) ||
-                                             !string.IsNullOrWhiteSpace(item.Status))
-                                        {
-                                            <div class="hint">
-                                                @if (!string.IsNullOrWhiteSpace(item.Priority)) { <span>@item.Priority priority</span> }
-                                                @if (!string.IsNullOrWhiteSpace(item.Status)) { <span> · @item.Status</span> }
-                                                @if (!string.IsNullOrWhiteSpace(item.ExpectedDate)) { <span> · Expected @item.ExpectedDate</span> }
-                                                @if (!string.IsNullOrWhiteSpace(item.Budget)) { <span> · Budget @item.Budget</span> }
-                                            </div>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(item.Remarks))
-                                        {
-                                            <div class="hint">@item.Remarks</div>
-                                        }
-                                        @foreach (var imagePath in RequirementImagePaths(item))
-                                        {
-                                            if (imagePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-                                            {
-                                                <a href="@imagePath" target="_blank" rel="noopener" class="btn btn-outline btn-xs" title="View PDF">
-                                                    <i class="bi bi-file-earmark-pdf"></i> PDF
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                <a href="@imagePath" target="_blank" rel="noopener">
-                                                    <img src="@imagePath" alt="Requirement attachment" loading="lazy"
-                                                         style="max-width:60px;max-height:45px;margin-top:5px;border-radius:4px;border:1px solid var(--line);object-fit:cover;" />
-                                                </a>
-                                            }
-                                        }
-                                    </td>
-                                    <td>@(string.IsNullOrWhiteSpace(item.Glass) ? "—" : item.Glass)</td>
-                                    <td>@(string.IsNullOrWhiteSpace(item.Quantity) ? "1" : item.Quantity)</td>
-                                    <td>
-                                        @if (widthValues.Length == 0)
-                                        {
-                                            <span>—</span>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var width in widthValues)
-                                            {
-                                                <div>@width.Label</div>
-                                            }
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (widthValues.Length == 0)
-                                        {
-                                            <span>—</span>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var width in widthValues)
-                                            {
-                                                <div>@width.Value</div>
-                                            }
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (heightValues.Length == 0)
-                                        {
-                                            <span>—</span>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var height in heightValues)
-                                            {
-                                                <div>@height.Label</div>
-                                            }
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (heightValues.Length == 0)
-                                        {
-                                            <span>—</span>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var height in heightValues)
-                                            {
-                                                <div>@height.Value</div>
-                                            }
-                                        }
-                                    </td>
-                                    <td>@(string.IsNullOrWhiteSpace(item.AreaCharge) ? "—" : item.AreaCharge)</td>
-                                    <td class="amount-cell">@RequirementCurrency(item.Amount)</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                var culture = System.Globalization.CultureInfo.GetCultureInfo("en-IN");
+                var categoryGroups = lead.Requirements
+                    .GroupBy(r => !string.IsNullOrWhiteSpace(r.Category) ? r.Category.Trim() : (!string.IsNullOrWhiteSpace(r.RequirementType) ? r.RequirementType.Trim() : "General"))
+                    .OrderBy(g => g.Key)
+                    .ToList();
+
+                @foreach (var catGroup in categoryGroups)
+                {
+                    var catName = catGroup.Key;
+                    var catItems = catGroup.ToList();
+                    var catQty = catItems.Sum(item => decimal.TryParse(item.Quantity, out var q) ? q : 1);
+                    var catTotalAmt = catItems.Sum(item => {
+                        var raw = !string.IsNullOrWhiteSpace(item.Amount) ? item.Amount : item.Budget;
+                        return decimal.TryParse(raw?.Replace("₹","")?.Replace(",","")?.Trim(), out var a) ? a : 0m;
+                    });
+                    var catTotalArea = catItems.Sum(item => decimal.TryParse(item.AreaCharge?.Trim(), out var a) ? a : 0m);
+
+                    <div class="req-category-card" style="border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:24px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <!-- Category Box Header -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#f8fafc;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:10px;">
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                                <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--ink-900);">
+                                    <i class="bi bi-folder2-open" style="color:var(--brand-600);font-size:17px;"></i>
+                                    Category : <span style="color:var(--brand-700);">@catName</span>
+                                </span>
+                                <span class="badge" style="background:var(--brand-50, #eff6ff);color:var(--brand-700, #1d4ed8);border:1px solid var(--brand-200, #bfdbfe);padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">
+                                    @catItems.Count @(catItems.Count == 1 ? "Item" : "Items")
+                                </span>
+                                @if (catTotalAmt > 0)
+                                {
+                                    <span style="font-size:12px;font-weight:700;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;padding:2px 8px;border-radius:8px;">
+                                        Total: ₹@catTotalAmt.ToString("N2", culture)
+                                    </span>
+                                }
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <a href="@Url.Action("RequirementDocument", "Lead", new { id = lead.LeadId, category = catName, mode = "single", print = true })" target="_blank" rel="noopener" class="btn btn-outline btn-xs" style="padding:4px 10px;font-size:12px;font-weight:600;color:#0369a1;border-color:#bae6fd;background:#f0f9ff;display:inline-flex;align-items:center;gap:4px;" title="Print Form (All @catName Requirements)">
+                                    <i class="bi bi-printer"></i> Print Category Sheet
+                                </a>
+                                <a href="@Url.Action("RequirementDocument", "Lead", new { id = lead.LeadId, category = catName, mode = "single" })" target="_blank" rel="noopener" class="btn btn-outline btn-xs" style="padding:4px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;" title="View Category Document">
+                                    <i class="bi bi-file-earmark-text"></i> View Document
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Table inside Category Box -->
+                        <div class="table-wrap" style="overflow-x:auto;">
+                            <table class="data-table" style="min-width:1050px;margin:0;">
+                                <thead>
+                                    <tr style="background:#fcfdfd;">
+                                        <th rowspan="2" style="width:65px;text-align:center;">Sr. No.</th>
+                                        <th rowspan="2" style="min-width:110px;">Location</th>
+                                        <th rowspan="2" style="min-width:230px;">Window Description</th>
+                                        <th rowspan="2" style="min-width:90px;">GLASS</th>
+                                        <th rowspan="2" style="width:60px;text-align:center;">QTY</th>
+                                        <th colspan="2" style="text-align:center;border-left:1px solid var(--line);border-right:1px solid var(--line);">Width (mm)</th>
+                                        <th colspan="2" style="text-align:center;border-right:1px solid var(--line);">Height (mm)</th>
+                                        <th rowspan="2" style="width:110px;text-align:center;">Area (Sq.Ft) Charge</th>
+                                        <th rowspan="2" style="width:110px;text-align:right;">Amount</th>
+                                    </tr>
+                                    <tr style="background:#fcfdfd;font-size:11.5px;">
+                                        <th style="width:65px;text-align:center;border-left:1px solid var(--line);">W1 / W2 / W3</th>
+                                        <th style="width:75px;text-align:center;border-right:1px solid var(--line);">Value</th>
+                                        <th style="width:65px;text-align:center;">H1 / H2 / H3</th>
+                                        <th style="width:75px;text-align:center;border-right:1px solid var(--line);">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (var itemIndex = 0; itemIndex < catItems.Count; itemIndex++)
+                                    {
+                                        var item = catItems[itemIndex];
+                                        var itemName = string.IsNullOrWhiteSpace(item.Item) ? item.ItemName : item.Item;
+                                        var description = string.Join(" / ", new[] { itemName, item.Types, item.Topology }
+                                            .Where(value => !string.IsNullOrWhiteSpace(value)));
+                                        var descDisplay = string.IsNullOrWhiteSpace(description) ? item.Title : description;
+                                        var imagePaths = RequirementImagePaths(item);
+                                        var amtRaw = !string.IsNullOrWhiteSpace(item.Amount) ? item.Amount : item.Budget;
+
+                                        var widths = Dimensions(("W1", item.W1), ("W2", item.W2), ("W3", item.W3));
+                                        var heights = Dimensions(("H1", item.H1), ("H2", item.H2), ("H3", item.H3));
+
+                                        <tr>
+                                            <td style="text-align:center;vertical-align:middle;padding:8px 4px;">
+                                                <div style="font-weight:700;color:var(--ink-700);font-size:13px;">@(itemIndex + 1)</div>
+                                                <div style="display:flex;justify-content:center;gap:4px;margin-top:4px;">
+                                                    <button type="button" class="icon-btn" style="border:none;background:transparent;color:var(--brand-600);cursor:pointer;padding:2px;"
+                                                            title="Edit Item"
+                                                            onclick="editRequirement(this)"
+                                                            data-req-id="@item.Id"
+                                                            data-category="@catName"
+                                                            data-item="@(string.IsNullOrWhiteSpace(item.Item) ? item.ItemName : item.Item)"
+                                                            data-location="@item.Location"
+                                                            data-h1="@item.H1"
+                                                            data-h2="@item.H2"
+                                                            data-h3="@item.H3"
+                                                            data-w1="@item.W1"
+                                                            data-w2="@item.W2"
+                                                            data-w3="@item.W3"
+                                                            data-types="@item.Types"
+                                                            data-topology="@item.Topology"
+                                                            data-glass="@item.Glass"
+                                                            data-quantity="@(string.IsNullOrWhiteSpace(item.Quantity) ? "1" : item.Quantity)"
+                                                            data-area-charge="@item.AreaCharge"
+                                                            data-amount="@(string.IsNullOrWhiteSpace(item.Amount) ? item.Budget : item.Amount)"
+                                                            data-priority="@item.Priority"
+                                                            data-status="@item.Status"
+                                                            data-expected-date="@item.ExpectedDate"
+                                                            data-budget="@item.Budget"
+                                                            data-description="@(string.IsNullOrWhiteSpace(item.Remarks) ? item.Description : item.Remarks)">
+                                                        <i class="bi bi-pencil-square" style="font-size:14px;"></i>
+                                                    </button>
+                                                    <form method="post" asp-controller="Lead" asp-action="DeleteRequirement" onsubmit="return confirm('Delete this requirement item?');" style="display:inline;">
+                                                        <input type="hidden" name="leadId" value="@lead.LeadId" />
+                                                        <input type="hidden" name="reqId" value="@item.Id" />
+                                                        <button type="submit" class="icon-btn" style="border:none;background:transparent;color:var(--danger, #ef4444);cursor:pointer;padding:2px;" title="Delete Item">
+                                                            <i class="bi bi-trash" style="font-size:14px;"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td style="vertical-align:middle;font-weight:500;">
+                                                @(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location)
+                                            </td>
+                                            <td style="vertical-align:middle;">
+                                                <div style="font-weight:700;color:var(--ink-900);font-size:13px;">@descDisplay</div>
+                                                <div style="font-size:11.5px;color:var(--brand-700);margin-top:2px;font-weight:600;">@catName</div>
+                                                <div style="font-size:11.5px;color:var(--ink-500);margin-top:2px;">
+                                                    @(string.IsNullOrWhiteSpace(item.Priority) ? "Medium" : item.Priority) priority
+                                                    · @(string.IsNullOrWhiteSpace(item.Status) ? "New" : item.Status)
+                                                    @if (!string.IsNullOrWhiteSpace(item.ExpectedDate)) { <span> · Expected @item.ExpectedDate</span> }
+                                                    @if (!string.IsNullOrWhiteSpace(item.Budget)) { <span> · Budget @item.Budget</span> }
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(item.Description) && item.Description != descDisplay)
+                                                {
+                                                    <div style="font-size:11.5px;color:var(--ink-400);margin-top:2px;">@item.Description</div>
+                                                }
+                                                @if (imagePaths.Count > 0)
+                                                {
+                                                    <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                                                        @foreach (var imgPath in imagePaths)
+                                                        {
+                                                            <a href="@imgPath" target="_blank" rel="noopener" onclick="event.preventDefault(); previewRequirementFullImg('@imgPath');">
+                                                                <img src="@imgPath" alt="Photo" style="width:36px;height:36px;border-radius:4px;border:1px solid var(--line);object-fit:cover;" />
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                }
+                                            </td>
+                                            <td style="vertical-align:middle;color:var(--ink-700);">
+                                                @(string.IsNullOrWhiteSpace(item.Glass) ? "—" : item.Glass)
+                                            </td>
+                                            <td style="text-align:center;vertical-align:middle;font-weight:600;">
+                                                @(string.IsNullOrWhiteSpace(item.Quantity) ? "1" : item.Quantity)
+                                            </td>
+                                            <td style="vertical-align:middle;text-align:center;border-left:1px solid var(--line);">
+                                                @if (widths.Length == 0) { <span>—</span> }
+                                                else {
+                                                    @foreach (var w in widths) {
+                                                        <div style="font-size:11.5px;color:var(--ink-600);font-weight:600;">@w.Label</div>
+                                                    }
+                                                }
+                                            </td>
+                                            <td style="vertical-align:middle;text-align:center;border-right:1px solid var(--line);">
+                                                @if (widths.Length == 0) { <span>—</span> }
+                                                else {
+                                                    @foreach (var w in widths) {
+                                                        <div style="font-size:11.5px;color:var(--ink-800);">@w.Value</div>
+                                                    }
+                                                }
+                                            </td>
+                                            <td style="vertical-align:middle;text-align:center;">
+                                                @if (heights.Length == 0) { <span>—</span> }
+                                                else {
+                                                    @foreach (var h in heights) {
+                                                        <div style="font-size:11.5px;color:var(--ink-600);font-weight:600;">@h.Label</div>
+                                                    }
+                                                }
+                                            </td>
+                                            <td style="vertical-align:middle;text-align:center;border-right:1px solid var(--line);">
+                                                @if (heights.Length == 0) { <span>—</span> }
+                                                else {
+                                                    @foreach (var h in heights) {
+                                                        <div style="font-size:11.5px;color:var(--ink-800);">@h.Value</div>
+                                                    }
+                                                }
+                                            </td>
+                                            <td style="text-align:center;vertical-align:middle;color:var(--ink-700);">
+                                                @(string.IsNullOrWhiteSpace(item.AreaCharge) ? "—" : item.AreaCharge)
+                                            </td>
+                                            <td style="text-align:right;vertical-align:middle;font-weight:600;color:var(--ink-800);">
+                                                @(string.IsNullOrWhiteSpace(amtRaw) ? "—" : RequirementCurrency(amtRaw))
+                                            </td>
+                                        </tr>
+                                    }
+                                    @if (catItems.Count > 1)
+                                    {
+                                        <tr style="background:#f8fafc;font-weight:700;border-top:1px solid var(--line);">
+                                            <td colspan="4" style="text-align:right;color:var(--ink-600);">@catName Subtotal:</td>
+                                            <td style="text-align:center;">@catQty</td>
+                                            <td colspan="4"></td>
+                                            <td style="text-align:center;">@(catTotalArea > 0 ? catTotalArea.ToString("N2", culture) : "—")</td>
+                                            <td style="text-align:right;color:#16a34a;">@(catTotalAmt > 0 ? "₹" + catTotalAmt.ToString("N2", culture) : "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
             }
         </div>
 
@@ -2064,5 +2100,24 @@
         if (string.IsNullOrWhiteSpace(name)) return "—";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length >= 2 ? $"{parts[0][0]}{parts[1][0]}" : name.Substring(0, Math.Min(2, name.Length));
+    }
+
+    (string Label, string Value)[] Dimensions(params (string Label, string? Value)[] values)
+    {
+        return values
+            .Where(item => !string.IsNullOrWhiteSpace(item.Value))
+            .Select(item => (item.Label, item.Value!))
+            .ToArray();
+    }
+
+    string RequirementCurrency(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "—";
+        var norm = raw.Trim().Replace("₹", "").Replace(",", "");
+        if (decimal.TryParse(norm, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var val))
+        {
+            return "₹" + val.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("en-IN"));
+        }
+        return raw;
     }
 }

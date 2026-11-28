@@ -580,7 +580,15 @@ Accept: application/json
 ### 3.10 Lead Requirements (`/api/v1/app/leads/{id}/requirements`)
 - `GET /api/v1/app/leads/{id}/requirements`: Retrieves all requirements for a lead.
 - `POST /api/v1/app/leads/{id}/requirements`: Adds a requirement as JSON or `multipart/form-data`.
+- `PUT /api/v1/app/leads/{id}/requirements/{reqId}`: Updates one requirement as JSON or `multipart/form-data`; existing photos are preserved and newly uploaded photos are appended.
 - `DELETE /api/v1/app/leads/{id}/requirements/{reqId}`: Removes a requirement.
+
+`GET /api/v1/app/leads/{id}` returns `multipart/mixed`: the first part is
+`lead.json` (`application/json`) containing the lead and its requirement image
+URLs; each following part is a requirement image file. Image part names use
+`requirement_{reqId}_image_{index}` (for example, `requirement_8_image_1`).
+The JSON part includes `ImagePaths` as an array and retains the legacy
+`ImagePathsJson` and `ImagePath` fields.
 
 Item rows may optionally include `quantity`, `areaCharge` (area in square feet), and `amount`.
 The response includes these saved values; older payloads without them remain supported.
@@ -778,6 +786,8 @@ Accept: application/json
 
 ### 4.3 Create Project
 Creates a new project record with an auto-generated project code (e.g., `PRJ-1002`).
+`clientName` is the only required project field. If `projectName` is omitted or
+blank, it defaults to `"New Project"`.
 
 - **Method**: `POST`
 - **Route**: `/api/v1/app/projects`
@@ -805,6 +815,13 @@ Accept: application/json
   "priority": "High",
   "status": "Active",
   "notes": "Kick-off meeting scheduled for next week."
+}
+```
+
+The minimum valid request body is:
+```json
+{
+  "clientName": "Apex Logistics"
 }
 ```
 

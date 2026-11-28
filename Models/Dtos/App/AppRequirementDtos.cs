@@ -55,7 +55,6 @@ public class AppRequirementItemDto
     /// <summary>Photo as base64, with or without "data:image/jpeg;base64," prefix.</summary>
     public string? ImageBase64 { get; set; }
 
-    [JsonIgnore]
     public List<IFormFile>? Images { get; set; }
 }
 

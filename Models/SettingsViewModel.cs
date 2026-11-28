@@ -8,6 +8,7 @@ public class SettingsViewModel
 {
     public List<string> Statuses { get; set; } = new();
     public List<string> Sources { get; set; } = new();
+    public List<string> RequirementTypes { get; set; } = new();
     public List<string> RequirementCategories { get; set; } = new();
     public List<UserRoleEntry> Users { get; set; } = new();
     public List<TaxMaster> Taxes { get; set; } = new();

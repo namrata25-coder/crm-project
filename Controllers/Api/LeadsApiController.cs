@@ -113,7 +113,6 @@ public class LeadsApiController : ControllerBase
 
         return (currentUser, isSalesExec, matches.Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
     }
-
     private bool IsAssigned(Lead? lead, List<string> matches)
     {
         if (lead == null || string.IsNullOrWhiteSpace(lead.AssignedTo)) return false;
@@ -607,24 +606,48 @@ public class LeadsApiController : ControllerBase
 
     // POST /api/leads/{id}/requirements   (JSON body, no image)
     [HttpPost("{id}/requirements")]
-    public ActionResult<Lead> AddRequirement(string id, [FromBody] AddRequirementRequest request)
+    public async Task<ActionResult<Lead>> AddRequirement(string id, [FromBody] AddRequirementRequest request)
     {
         var lead = LeadStore.GetById(id);
         if (lead is null) return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
 
-        if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Priority) || string.IsNullOrWhiteSpace(request.Status))
-            return BadRequest(new ApiError { Message = "Title, Priority and Status are required." });
+        var cat = request.Category?.Trim() ?? "";
+        var itm = request.Item?.Trim() ?? "";
+        var title = !string.IsNullOrWhiteSpace(request.Title)
+            ? request.Title.Trim()
+            : (!string.IsNullOrWhiteSpace(itm) ? itm : (!string.IsNullOrWhiteSpace(cat) ? cat : "Requirement"));
 
-        lead.Requirements.Add(new RequirementEntry
+        var requirement = new RequirementEntry
         {
-            Title = request.Title,
-            Description = request.Description ?? "",
-            Priority = request.Priority,
-            ExpectedDate = request.ExpectedDate ?? "",
-            Budget = request.Budget ?? "",
-            Status = request.Status
-        });
+            Title = title,
+            Description = request.Description?.Trim() ?? "",
+            Priority = string.IsNullOrWhiteSpace(request.Priority) ? "Medium" : request.Priority.Trim(),
+            ExpectedDate = request.ExpectedDate?.Trim() ?? "",
+            Budget = request.Budget?.Trim() ?? "",
+            Status = string.IsNullOrWhiteSpace(request.Status) ? "New" : request.Status.Trim(),
+            Category = cat,
+            RequirementType = cat,
+            Item = itm,
+            ItemName = itm,
+            Location = request.Location?.Trim() ?? "",
+            H1 = request.H1?.Trim() ?? "",
+            H2 = request.H2?.Trim() ?? "",
+            H3 = request.H3?.Trim() ?? "",
+            W1 = request.W1?.Trim() ?? "",
+            W2 = request.W2?.Trim() ?? "",
+            W3 = request.W3?.Trim() ?? "",
+            Types = request.Types?.Trim() ?? "",
+            Topology = request.Topology?.Trim() ?? "",
+            Glass = request.Glass?.Trim() ?? "",
+            Quantity = string.IsNullOrWhiteSpace(request.Quantity) ? "1" : request.Quantity.Trim(),
+            AreaCharge = request.AreaCharge?.Trim() ?? "",
+            Amount = request.Amount?.Trim() ?? "",
+            Details = request.Details?.Trim() ?? "",
+            Remarks = request.Remarks?.Trim() ?? ""
+        };
 
+        lead.Requirements.Add(requirement);
+        await TrySaveAsync($"add requirement for lead '{id}'");
         return Ok(lead);
     }
 
@@ -639,23 +662,22 @@ public class LeadsApiController : ControllerBase
         if (requirement is null)
             return NotFound(new ApiError { Message = $"Requirement '{requirementId}' not found for lead '{id}'." });
 
-        if (string.IsNullOrWhiteSpace(request.Title) ||
-            string.IsNullOrWhiteSpace(request.Priority) ||
-            string.IsNullOrWhiteSpace(request.Status))
-        {
-            return BadRequest(new ApiError { Message = "Title, Priority and Status are required." });
-        }
+        var cat = request.Category?.Trim() ?? "";
+        var itm = request.Item?.Trim() ?? "";
+        var title = !string.IsNullOrWhiteSpace(request.Title)
+            ? request.Title.Trim()
+            : (!string.IsNullOrWhiteSpace(itm) ? itm : (!string.IsNullOrWhiteSpace(cat) ? cat : requirement.Title));
 
-        requirement.Title = request.Title.Trim();
+        requirement.Title = title;
         requirement.Description = request.Description?.Trim() ?? "";
-        requirement.Priority = request.Priority.Trim();
+        requirement.Priority = string.IsNullOrWhiteSpace(request.Priority) ? "Medium" : request.Priority.Trim();
         requirement.ExpectedDate = request.ExpectedDate?.Trim() ?? "";
         requirement.Budget = request.Budget?.Trim() ?? "";
-        requirement.Status = request.Status.Trim();
-        requirement.Category = request.Category?.Trim() ?? "";
-        requirement.RequirementType = requirement.Category;
-        requirement.Item = request.Item?.Trim() ?? "";
-        requirement.ItemName = requirement.Item;
+        requirement.Status = string.IsNullOrWhiteSpace(request.Status) ? "New" : request.Status.Trim();
+        requirement.Category = cat;
+        requirement.RequirementType = cat;
+        requirement.Item = itm;
+        requirement.ItemName = itm;
         requirement.Location = request.Location?.Trim() ?? "";
         requirement.H1 = request.H1?.Trim() ?? "";
         requirement.H2 = request.H2?.Trim() ?? "";
@@ -666,7 +688,7 @@ public class LeadsApiController : ControllerBase
         requirement.Types = request.Types?.Trim() ?? "";
         requirement.Topology = request.Topology?.Trim() ?? "";
         requirement.Glass = request.Glass?.Trim() ?? "";
-        requirement.Quantity = request.Quantity?.Trim() ?? "";
+        requirement.Quantity = string.IsNullOrWhiteSpace(request.Quantity) ? "1" : request.Quantity.Trim();
         requirement.AreaCharge = request.AreaCharge?.Trim() ?? "";
         requirement.Amount = request.Amount?.Trim() ?? "";
         requirement.Details = request.Details?.Trim() ?? "";

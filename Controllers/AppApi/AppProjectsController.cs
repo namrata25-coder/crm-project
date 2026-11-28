@@ -224,9 +224,9 @@ public class AppProjectsController : ControllerBase
                     AppApiErrorResponse.Fail("You do not have permission to create projects."));
             }
 
-            if (input == null || string.IsNullOrWhiteSpace(input.ProjectName))
+            if (input == null || string.IsNullOrWhiteSpace(input.ClientName))
             {
-                return BadRequest(AppApiErrorResponse.Fail("Project name is required."));
+                return BadRequest(AppApiErrorResponse.Fail("Client name is required."));
             }
 
             if (input.Budget < 0)
@@ -247,7 +247,9 @@ public class AppProjectsController : ControllerBase
             var project = new WorkProject
             {
                 ProjectCode = NextProjectCode(),
-                ProjectName = input.ProjectName.Trim(),
+                ProjectName = string.IsNullOrWhiteSpace(input.ProjectName)
+                    ? "New Project"
+                    : input.ProjectName.Trim(),
                 ClientName = input.ClientName?.Trim() ?? "",
                 ClientCompany = input.ClientCompany?.Trim() ?? "",
                 ProjectType = string.IsNullOrWhiteSpace(input.ProjectType) ? "Direct Project" : input.ProjectType.Trim(),

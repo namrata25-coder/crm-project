@@ -206,17 +206,19 @@ function toggleRequirementForm() {
 
 function resetRequirementForm() {
   const form = document.getElementById('requirementForm');
-  const tbody = document.getElementById('requirementItemsTbody');
   if (form) form.reset();
-  if (tbody) tbody.innerHTML = '';
-  renumberRequirementItems();
+  const editId = document.getElementById('editRequirementId');
+  if (editId) editId.value = '';
 
   const heading = document.getElementById('requirementFormHeading');
   const saveButton = document.getElementById('saveRequirementButton');
-  const addItemButton = document.getElementById('addRequirementItemBtn');
-  if (heading) heading.textContent = 'Basic Requirement Details';
+  const curAttach = document.getElementById('reqCurrentAttachment');
+  if (heading) heading.innerHTML = '<i class="bi bi-clipboard-plus" style="color:var(--brand-600);"></i> Add Requirement';
   if (saveButton) saveButton.innerHTML = '<i class="bi bi-check-lg"></i> Save Requirement';
-  if (addItemButton) addItemButton.style.display = '';
+  if (curAttach) {
+    curAttach.style.display = 'none';
+    curAttach.innerHTML = '';
+  }
 }
 
 function startNewRequirement() {
@@ -224,15 +226,23 @@ function startNewRequirement() {
   const formContainer = document.getElementById('addRequirementForm');
   if (formContainer) formContainer.style.display = 'block';
   switchLeadTab('requirement');
+  const tbody = document.getElementById('requirementItemsTbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    addRequirementItem();
+  }
 }
 
 function cancelRequirementEdit() {
   resetRequirementForm();
   const formContainer = document.getElementById('addRequirementForm');
   if (formContainer) formContainer.style.display = 'none';
+  const tbody = document.getElementById('requirementItemsTbody');
+  if (tbody) tbody.innerHTML = '';
 }
 
-function editRequirementItem(button) {
+function editRequirement(button) {
+  const data = button.dataset;
   const form = document.getElementById('requirementForm');
   const formContainer = document.getElementById('addRequirementForm');
   if (!form || !formContainer) return;
@@ -240,66 +250,62 @@ function editRequirementItem(button) {
   resetRequirementForm();
   formContainer.style.display = 'block';
   switchLeadTab('requirement');
-  addRequirementItem();
 
-  const row = document.querySelector('#requirementItemsTbody .req-item-row');
-  if (!row) return;
-
-  const data = button.dataset;
   const editId = document.getElementById('editRequirementId');
   if (editId) editId.value = data.reqId || '';
 
-  const setValue = (name, value) => {
-    const field = form.querySelector(`[name="${name}"]`);
-    if (field) field.value = value || '';
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || '';
   };
-  setValue('title', data.title);
-  setValue('description', data.description);
-  setValue('priority', data.priority || 'Medium');
-  setValue('status', data.status || 'New');
-  setValue('expectedDate', data.expectedDate);
-  setValue('budget', data.budget);
 
-  const category = row.querySelector('[name="category"]');
-  if (category) {
-    const categoryExists = Array.from(category.options).some(option => option.value === (data.category || ''));
-    if (!categoryExists && data.category) category.add(new Option(data.category, data.category));
-    category.value = data.category || '';
-  }
+  setVal('reqPrioritySelect', data.priority || 'Medium');
+  setVal('reqStatusSelect', data.status || 'New');
+  setVal('reqExpectedDateInput', data.expectedDate);
+  setVal('reqBudgetInput', data.budget);
+  setVal('reqDescInput', data.description);
 
-  [
-    'item', 'location', 'h1', 'h2', 'h3', 'w1', 'w2', 'w3',
-    'types', 'topology', 'glass', 'quantity', 'areaCharge', 'amount'
-  ].forEach(name => {
-    const field = row.querySelector(`[name="${name}"]`);
-    const dataName = name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
-    if (field) field.value = data[dataName] || '';
-  });
-
-  const existingImageCount = Number(data.imageCount) || 0;
-  row.dataset.existingImageCount = String(existingImageCount);
-  row.dataset.existingImagePath = data.imagePath || '';
-  const previewBox = row.querySelector('.req-img-preview-box');
-  const thumbImg = row.querySelector('.req-thumb-img');
-  const imageCount = row.querySelector('.req-image-count');
-  const removeImageButton = row.querySelector('.req-img-remove-btn');
-  if (existingImageCount > 0) {
-    if (thumbImg && data.imagePath) thumbImg.src = data.imagePath;
-    if (previewBox) previewBox.style.display = 'inline-flex';
-    if (imageCount) imageCount.textContent = `${existingImageCount} existing photo${existingImageCount === 1 ? '' : 's'} retained`;
-    if (removeImageButton) {
-      removeImageButton.style.display = 'none';
-      removeImageButton.title = 'Remove newly selected photos';
+  const tbody = document.getElementById('requirementItemsTbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    addRequirementItem();
+    const firstRow = tbody.querySelector('.req-item-row');
+    if (firstRow) {
+      const catSelect = firstRow.querySelector('select[name="category"]');
+      if (catSelect && data.category) {
+        catSelect.value = data.category;
+      }
+      const setRowVal = (sel, val) => {
+        const inp = firstRow.querySelector(sel);
+        if (inp) inp.value = val || '';
+      };
+      setRowVal('input[name="items"]', data.item);
+      setRowVal('input[name="location"]', data.location);
+      setRowVal('input[name="h1"]', data.h1);
+      setRowVal('input[name="h2"]', data.h2);
+      setRowVal('input[name="h3"]', data.h3);
+      setRowVal('input[name="w1"]', data.w1);
+      setRowVal('input[name="w2"]', data.w2);
+      setRowVal('input[name="w3"]', data.w3);
+      setRowVal('input[name="types"]', data.types);
+      setRowVal('input[name="topology"]', data.topology);
+      setRowVal('input[name="glass"]', data.glass);
+      setRowVal('input[name="quantity"]', data.quantity || '1');
+      setRowVal('input[name="areaCharge"]', data.areaCharge);
+      setRowVal('input[name="amount"]', data.amount);
     }
   }
 
   const heading = document.getElementById('requirementFormHeading');
   const saveButton = document.getElementById('saveRequirementButton');
-  const addItemButton = document.getElementById('addRequirementItemBtn');
-  if (heading) heading.textContent = 'Edit Requirement Item';
+  if (heading) heading.innerHTML = '<i class="bi bi-pencil-square" style="color:var(--brand-600);"></i> Edit Requirement Item';
   if (saveButton) saveButton.innerHTML = '<i class="bi bi-check-lg"></i> Update Requirement';
-  if (addItemButton) addItemButton.style.display = 'none';
+
   formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function editRequirementItem(button) {
+  editRequirement(button);
 }
 
 // Dynamic Requirement Items in Table Format
@@ -376,40 +382,21 @@ function addRequirementItem() {
       <input type="number" min="0" step="any" name="amount" class="req-input" placeholder="Amount" />
     </td>
     <td style="text-align:center;vertical-align:middle;">
-      <div class="req-img-actions-wrap">
-        <!-- 1. Existing Camera Button (Kept unchanged in look) -->
-        <button type="button" class="req-file-label req-cam-btn" title="Capture photo with Camera" onclick="openRequirementCamera(this)">
-          <i class="bi bi-camera-fill"></i> <span class="req-file-text">+</span>
-        </button>
-
-        <!-- 2. Separate Upload Photo Option -->
-        <label class="req-file-label req-upload-btn" title="Upload Photos (JPG, JPEG, PNG, WEBP, GIF)">
-          <i class="bi bi-cloud-arrow-up-fill"></i> <span class="req-file-text">Upload</span>
-          <input type="file" class="req-file-input" accept=".jpg,.jpeg,.png,.webp,.gif" multiple onchange="handleReqImageSelect(this)" style="display:none;" />
-        </label>
-
-        <!-- Hidden input for base64 / captured camera image -->
-        <input type="hidden" name="requirementImageData" class="req-image-data" value="" />
-
-        <!-- 3. Small Image Preview Thumbnail & Remove/Change controls -->
-        <div class="req-img-preview-box" style="display:none;">
-          <img src="" alt="Preview" class="req-thumb-img" onclick="previewRequirementFullImg(this.src)" title="Click to view full preview" />
-          <span class="req-image-count" style="font-size:11px;color:var(--ink-600);"></span>
-          <button type="button" class="req-img-remove-btn" title="Remove selected images" onclick="removeRequirementImage(this)">
-            <i class="bi bi-x"></i>
-          </button>
-        </div>
-      </div>
-    </td>
-    <td style="text-align:center;vertical-align:middle;">
       <button type="button" class="fin-remove-row" style="color:#c81e1e;background:transparent;border:none;cursor:pointer;font-size:14px;padding:4px;" title="Remove this item" onclick="removeRequirementItem(this)">
         <i class="bi bi-trash"></i>
       </button>
     </td>
   `;
 
+  const lastRow = tbody.querySelector('.req-item-row:last-child');
+  const prevCategory = lastRow ? (lastRow.querySelector('select[name="category"]')?.value || '') : '';
+
   tbody.appendChild(row);
-  row.querySelector('[data-requirement-category]').appendChild(createRequirementCategorySelect());
+  const catSelect = createRequirementCategorySelect();
+  if (prevCategory) {
+    catSelect.value = prevCategory;
+  }
+  row.querySelector('[data-requirement-category]').appendChild(catSelect);
   renumberRequirementItems();
 }
 

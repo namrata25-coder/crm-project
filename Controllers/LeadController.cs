@@ -113,7 +113,7 @@ public class LeadController : Controller
         return View(lead);
     }
 
-    public IActionResult RequirementDocument(string id)
+    public IActionResult RequirementDocument(string id, int? reqId = null, string? category = null, bool print = false, string? mode = null)
     {
         var authEmail = User.FindFirst(ClaimTypes.Email)?.Value;
         var currentUser = _db.Users.FirstOrDefault(u => u.Email == authEmail);
@@ -130,7 +130,15 @@ public class LeadController : Controller
         if (lead is null)
             return NotFound();
 
-        ViewData["Title"] = "Requirement Document";
+        ViewData["ReqId"] = reqId;
+        ViewData["Category"] = category;
+        ViewData["AutoPrint"] = print;
+        ViewData["Mode"] = mode;
+        ViewData["Title"] = !string.IsNullOrWhiteSpace(category)
+            ? $"Requirement - Category {category} - {lead.LeadName}"
+            : (reqId.HasValue && string.Equals(mode, "single", StringComparison.OrdinalIgnoreCase))
+                ? $"Requirement Form - {lead.LeadName}"
+                : $"Requirement Document - {lead.LeadName}";
         return View(lead);
     }
 
@@ -305,20 +313,8 @@ public class LeadController : Controller
         };
         var count = counts.Max();
 
-        if (itemizedRequirement && count == 0)
-        {
-            TempData["RequirementError"] = "Add at least one item before saving the requirement.";
-            return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
-        }
-
-        if (reqId.HasValue && !itemizedRequirement)
-        {
-            TempData["RequirementError"] = "The requirement edit request is invalid.";
-            return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
-        }
-
         // 1. Single requirement form submission (standard)
-        if (count == 0 && (!string.IsNullOrWhiteSpace(title) || !string.IsNullOrWhiteSpace(requirementType) || !string.IsNullOrWhiteSpace(itemName)))
+        if (count == 0)
         {
             string imagePath = "";
             if (image is not null && image.Length > 0)
@@ -339,10 +335,49 @@ public class LeadController : Controller
                 }
             }
 
-            var cleanType = requirementType?.Trim() ?? "";
+            var cleanType = requirementType?.Trim() ?? category?.FirstOrDefault()?.Trim() ?? "";
             var cleanTitle = !string.IsNullOrWhiteSpace(title) ? title.Trim() : (!string.IsNullOrWhiteSpace(itemName) ? itemName.Trim() : (!string.IsNullOrWhiteSpace(cleanType) ? cleanType : "Requirement"));
             var cleanItem = !string.IsNullOrWhiteSpace(itemName) ? itemName.Trim() : cleanTitle;
             var cleanQty = quantity?.FirstOrDefault()?.Trim() ?? "1";
+
+            // If updating an existing requirement
+            if (reqId.HasValue)
+            {
+                var existing = lead.Requirements.FirstOrDefault(r => r.Id == reqId.Value);
+                if (existing is null)
+                {
+                    TempData["RequirementError"] = "The requirement you tried to edit could not be found.";
+                    return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+                }
+
+                if (!string.IsNullOrWhiteSpace(cleanType)) existing.RequirementType = cleanType;
+                if (!string.IsNullOrWhiteSpace(cleanType)) existing.Category = cleanType;
+                existing.Title = cleanTitle;
+                existing.ItemName = cleanItem;
+                existing.Item = cleanItem;
+                existing.Quantity = string.IsNullOrWhiteSpace(cleanQty) ? (existing.Quantity ?? "1") : cleanQty;
+                existing.Priority = string.IsNullOrWhiteSpace(priority) ? (existing.Priority ?? "Medium") : priority.Trim();
+                existing.Status = string.IsNullOrWhiteSpace(status) ? (existing.Status ?? "New") : status.Trim();
+                existing.ExpectedDate = expectedDate?.Trim() ?? existing.ExpectedDate ?? "";
+                existing.Budget = budget?.Trim() ?? existing.Budget ?? "";
+                existing.Description = description?.Trim() ?? existing.Description ?? "";
+                existing.Details = description?.Trim() ?? existing.Details ?? "";
+                existing.Remarks = remarks?.Trim() ?? existing.Remarks ?? "";
+                if (!string.IsNullOrWhiteSpace(imagePath))
+                {
+                    existing.ImagePath = imagePath;
+                }
+
+                await _db.SaveChangesAsync();
+                return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+            }
+
+            // New requirement
+            if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(requirementType) && string.IsNullOrWhiteSpace(itemName))
+            {
+                TempData["RequirementError"] = "Please provide requirement type or title.";
+                return RedirectToAction("Details", new { id = leadId, tab = "requirement" });
+            }
 
             lead.Requirements.Add(new RequirementEntry
             {

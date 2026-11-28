@@ -6,6 +6,42 @@
     var culture = CultureInfo.GetCultureInfo("en-IN");
     var items = Model.Requirements.OrderBy(r => r.Id).ToList();
 
+    string? targetCategory = ViewData["Category"] as string;
+    if (string.IsNullOrWhiteSpace(targetCategory))
+    {
+        targetCategory = Context.Request.Query["category"].ToString();
+    }
+
+    int? targetReqId = ViewData["ReqId"] as int?;
+    if (!targetReqId.HasValue && int.TryParse(Context.Request.Query["reqId"], out var qId))
+    {
+        targetReqId = qId;
+    }
+
+    var autoPrint = (ViewData["AutoPrint"] as bool? ?? false) || string.Equals(Context.Request.Query["print"], "true", StringComparison.OrdinalIgnoreCase);
+
+    var singleReq = targetReqId.HasValue ? items.FirstOrDefault(r => r.Id == targetReqId.Value) : null;
+    if (string.IsNullOrWhiteSpace(targetCategory) && singleReq != null)
+    {
+        targetCategory = !string.IsNullOrWhiteSpace(singleReq.Category) ? singleReq.Category : singleReq.RequirementType;
+    }
+
+    List<RequirementEntry> categoryItems = new List<RequirementEntry>();
+    if (!string.IsNullOrWhiteSpace(targetCategory))
+    {
+        categoryItems = items.Where(r =>
+            string.Equals(!string.IsNullOrWhiteSpace(r.Category) ? r.Category : r.RequirementType, targetCategory, StringComparison.OrdinalIgnoreCase)
+        ).ToList();
+    }
+    else if (singleReq != null)
+    {
+        categoryItems = new List<RequirementEntry> { singleReq };
+    }
+
+    var reqMode = ViewData["Mode"] as string ?? Context.Request.Query["mode"].ToString();
+    var isSingle = !string.Equals(reqMode, "full", StringComparison.OrdinalIgnoreCase) && (categoryItems.Count > 0 || singleReq != null || string.Equals(reqMode, "single", StringComparison.OrdinalIgnoreCase));
+    var categoryName = !string.IsNullOrWhiteSpace(targetCategory) ? targetCategory : (singleReq != null ? (!string.IsNullOrWhiteSpace(singleReq.Category) ? singleReq.Category : singleReq.RequirementType) : "Requirement");
+
     decimal? ParseNumber(string? raw)
     {
         var normalized = raw?.Trim().Replace("₹", "").Replace(",", "");
@@ -50,9 +86,9 @@
     }
 
     var hasAreaTotal = items.Any(item => ParseNumber(item.AreaCharge).HasValue);
-    var hasAmountTotal = items.Any(item => ParseNumber(item.Amount).HasValue);
+    var hasAmountTotal = items.Any(item => ParseNumber(item.Amount).HasValue || ParseNumber(item.Budget).HasValue);
     var totalArea = items.Sum(item => ParseNumber(item.AreaCharge) ?? 0m);
-    var totalAmount = items.Sum(item => ParseNumber(item.Amount) ?? 0m);
+    var totalAmount = items.Sum(item => ParseNumber(item.Amount) ?? (ParseNumber(item.Budget) ?? 0m));
     var printedDate = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromMinutes(330)).ToString("dd/MM/yyyy", culture);
     var notes = items.Select(item => item.Remarks)
         .Where(note => !string.IsNullOrWhiteSpace(note))
@@ -64,13 +100,17 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Requirement - @Model.LeadName</title>
+    <title>@(isSingle ? $"Requirement - {categoryName} - {Model.LeadName}" : $"Requirement - {Model.LeadName}")</title>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; background: #eef1f5; color: #172033; font-family: Arial, sans-serif; }
-        .toolbar { display: flex; justify-content: space-between; gap: 12px; max-width: 1180px; margin: 18px auto 0; }
+        body { margin: 0; background: #eef1f5; color: #172033; font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .toolbar { display: flex; justify-content: space-between; gap: 12px; max-width: 1180px; margin: 18px auto 0; padding: 0 10px; }
         .toolbar a, .toolbar button { border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #172033; padding: 9px 14px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
         .toolbar button { background: #2563a6; border-color: #2563a6; color: #fff; }
+
+        /* ========================================================= */
+        /* FULL PAGE STYLES (EXACTLY AS IN SCREENSHOT - NO CHANGE)   */
+        /* ========================================================= */
         .sheet { max-width: 1180px; margin: 14px auto 28px; padding: 24px; background: #fff; border: 1px solid #172033; }
         .document-header { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #172033; }
         .document-brand, .document-title { min-height: 54px; display: flex; align-items: center; padding: 12px 16px; }
@@ -87,10 +127,10 @@
         .eyebrow { color: #526071; font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
         .requirement-meta { display: flex; justify-content: flex-end; gap: 20px; padding: 7px 10px; border: 1px solid #172033; border-top: 0; font-size: 10px; }
         .table-scroll { overflow-x: auto; }
-        table { width: 100%; margin-top: 12px; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #172033; padding: 8px 6px; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
-        th { height: 38px; background: #f5f7fa; font-size: 10px; }
-        td { min-height: 42px; font-size: 10px; }
+        .full-page-table { width: 100%; margin-top: 12px; border-collapse: collapse; table-layout: fixed; }
+        .full-page-table th, .full-page-table td { border: 1px solid #172033; padding: 8px 6px; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
+        .full-page-table th { height: 38px; background: #f5f7fa; font-size: 10px; }
+        .full-page-table td { min-height: 42px; font-size: 10px; }
         .item-description { font-weight: 700; }
         .item-subline { margin-top: 4px; color: #526071; font-size: 9px; }
         .requirement-image { display: block; max-width: 80px; max-height: 50px; margin: 5px auto 0; object-fit: contain; }
@@ -100,121 +140,187 @@
         .notes { margin-top: 14px; padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 11px; }
         .notes strong { display: block; margin-bottom: 5px; }
         .empty-row { padding: 24px; color: #526071; }
+
+        /* ========================================================= */
+        /* SINGLE PRINT PAGE: CATEGORY SHEET (PROPER TABLE LAYOUT)   */
+        /* ========================================================= */
+        .single-print-sheet {
+            max-width: 1180px; margin: 16px auto 36px; padding: 24px 28px; background: #fff;
+            border: 1.5px solid #172033; color: #172033; font-family: Arial, Helvetica, sans-serif;
+        }
+
+        /* 1. Firstly Client Details */
+        .sp-client-box { border: 1.5px solid #172033; padding: 12px 18px; margin-bottom: 16px; background: #fff; }
+        .sp-client-title {
+            font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+            border-bottom: 1.5px solid #172033; padding-bottom: 6px; margin-bottom: 10px; color: #172033;
+        }
+        .sp-client-tbl { width: 100%; border-collapse: collapse; }
+        .sp-client-tbl td { padding: 4px 6px; font-size: 12.5px; vertical-align: top; }
+        .sp-lbl { width: 110px; font-weight: 700; color: #172033; }
+        .sp-colon { width: 12px; text-align: center; font-weight: 700; }
+        .sp-val { font-weight: 500; color: #172033; }
+        .sp-val.bold { font-weight: 800; font-size: 13.5px; }
+
+        /* 2. Category Heading (Only Category Highlighted) */
+        .sp-category-header {
+            border: 2px solid #172033; background: #172033; color: #fff; padding: 10px 18px; margin-bottom: 16px; text-align: center;
+        }
+        .sp-category-header h2 {
+            margin: 0; font-size: 17px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #fff;
+        }
+
+        /* PRINT MEDIA QUERIES */
         @@media (max-width: 760px) {
-            .toolbar, .sheet { margin-left: 10px; margin-right: 10px; }
-            .sheet { padding: 12px; }
+            .toolbar, .sheet, .single-print-sheet { margin-left: 10px; margin-right: 10px; }
+            .sheet, .single-print-sheet { padding: 12px; }
             .document-header, .client-info { grid-template-columns: 1fr; }
             .document-title, .client-info > div + div { border-left: 0; border-top: 1px solid #172033; }
             .requirement-meta { flex-wrap: wrap; }
             table { min-width: 850px; }
         }
         @@media print {
-            @@page { size: landscape; margin: 10mm; }
-            body { background: #fff; }
+            body { background: #fff !important; }
             .toolbar { display: none !important; }
-            .sheet { max-width: none; margin: 0; padding: 0; border: 0; }
+            .sheet, .single-print-sheet { max-width: none; margin: 0; padding: 0; border: none; box-shadow: none; }
             .table-scroll { overflow: visible; }
-            table { min-width: 0; margin-top: 8px; }
+            .full-page-table { min-width: 0; margin-top: 8px; }
             thead { display: table-header-group; }
             tr { break-inside: avoid; page-break-inside: avoid; }
-            th, td { padding: 6px 4px; }
+            @@page {
+                size: landscape;
+                margin: 10mm;
+            }
         }
     </style>
 </head>
 <body>
     <div class="toolbar">
-        <a href="@Url.Action("Details", "Lead", new { id = Model.LeadId, tab = "requirement" })">← Back to Lead</a>
-        <button type="button" onclick="window.print()">Print / Save as PDF</button>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <a href="@Url.Action("Details", "Lead", new { id = Model.LeadId, tab = "requirement" })">← Back to Lead</a>
+            @if (isSingle)
+            {
+                <a href="@Url.Action("RequirementDocument", "Lead", new { id = Model.LeadId })">View Full Page Table</a>
+            }
+        </div>
+        <div>
+            <button type="button" onclick="window.print()">Print / Save as PDF</button>
+        </div>
     </div>
 
-    <main class="sheet">
-        <header class="document-header">
-            <div class="document-brand">
-                <div class="brand-mark">CRM</div>
-                <div>
-                    <h1>Requirement Specification</h1>
-                    <p>Windows &amp; Doors</p>
-                </div>
-            </div>
-            <div class="document-title">REQUIREMENT DETAILS</div>
-        </header>
-
-        <section class="client-info">
-            <div>
-                <span class="eyebrow">Client</span>
-                <strong>@Model.LeadName</strong>
-                <p>@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "—" : Model.CompanyName)</p>
-            </div>
-            <div>
-                <span class="eyebrow">Contact / Address</span>
-                <p>Mobile: @(string.IsNullOrWhiteSpace(Model.MobileNumber) ? "—" : Model.MobileNumber)</p>
-                <p>Email: @(string.IsNullOrWhiteSpace(Model.Email) ? "—" : Model.Email)</p>
-                <p>Address: @(string.IsNullOrWhiteSpace(Model.Location) ? "—" : Model.Location)</p>
-            </div>
-        </section>
-
-        <div class="requirement-meta">
-            <span>Lead ID: @Model.LeadId</span>
-            <span>Printed: @printedDate</span>
-        </div>
-
-        <div class="table-scroll">
-            <table>
-                <colgroup>
-                    <col style="width:4%;" />
-                    <col style="width:11%;" />
-                    <col style="width:18%;" />
-                    <col style="width:9%;" />
-                    <col style="width:5%;" />
-                    <col style="width:6%;" />
-                    <col style="width:6%;" />
-                    <col style="width:6%;" />
-                    <col style="width:6%;" />
-                    <col style="width:12%;" />
-                    <col style="width:17%;" />
-                </colgroup>
-                <thead>
+    @if (isSingle)
+    {
+        <!-- ========================================================================= -->
+        <!-- PRINT CATEGORY SHEET: PROPER TABLE (NOT BOX/FORM FORMAT)                   -->
+        <!-- 1. FIRSTLY: CLIENT DETAILS                                                -->
+        <!-- 2. CATEGORY-HEADING (ONLY CATEGORY HIGHLIGHTED)                           -->
+        <!-- 3. PROPER TABULAR TABLE LOOKUP WITH DIMENSION SUB-COLUMNS                 -->
+        <!-- ========================================================================= -->
+        <main class="single-print-sheet">
+            <!-- 1. FIRSTLY: CLIENT DETAILS -->
+            <section class="sp-client-box">
+                <div class="sp-client-title">CLIENT DETAILS</div>
+                <table class="sp-client-tbl">
                     <tr>
-                        <th rowspan="2">Sr. No.</th>
-                        <th rowspan="2">Location</th>
-                        <th rowspan="2">Window Description</th>
-                        <th rowspan="2">Glass</th>
-                        <th rowspan="2">QTY</th>
-                        <th colspan="2">Width (mm)</th>
-                        <th colspan="2">Height (mm)</th>
-                        <th rowspan="2">Area (Sq.Ft) Charge</th>
-                        <th rowspan="2">Amount</th>
+                        <td class="sp-lbl">Client Name</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val bold">@Model.LeadName</td>
+                        <td class="sp-lbl">Date</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">@printedDate</td>
                     </tr>
                     <tr>
-                        <th>W1 / W2 / W3</th>
-                        <th>Value</th>
-                        <th>H1 / H2 / H3</th>
-                        <th>Value</th>
+                        <td class="sp-lbl">Company Name</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "—" : Model.CompanyName)</td>
+                        <td class="sp-lbl">Lead ID</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">@Model.LeadId</td>
                     </tr>
-                </thead>
-                <tbody>
-                    @if (items.Count == 0)
-                    {
-                        <tr><td class="empty-row" colspan="11">No saved requirements.</td></tr>
-                    }
-                    else
-                    {
-                        @for (var index = 0; index < items.Count; index++)
+                    <tr>
+                        <td class="sp-lbl">Mobile Number</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">@(string.IsNullOrWhiteSpace(Model.MobileNumber) ? "—" : Model.MobileNumber)</td>
+                        <td class="sp-lbl">Requirement Ref</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">REQ-@categoryName.ToUpper()</td>
+                    </tr>
+                    <tr>
+                        <td class="sp-lbl">Email Address</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">@(string.IsNullOrWhiteSpace(Model.Email) ? "—" : Model.Email)</td>
+                        <td class="sp-lbl">Assigned To</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val">@(string.IsNullOrWhiteSpace(Model.AssignedTo) ? "—" : Model.AssignedTo)</td>
+                    </tr>
+                    <tr>
+                        <td class="sp-lbl">Address</td>
+                        <td class="sp-colon">:</td>
+                        <td class="sp-val" colspan="4">@(string.IsNullOrWhiteSpace(Model.Location) ? "—" : Model.Location)</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- 2. ONLY CATEGORY HIGHLIGHTED -->
+            <section class="sp-category-header">
+                <h2>CATEGORY : @categoryName.ToUpper()</h2>
+            </section>
+
+            <!-- 3. PROPER TABULAR TABLE (NOT BOX FORM) -->
+            <div class="table-scroll" style="margin-bottom:18px;">
+                <table class="full-page-table" style="margin-top:0;">
+                    <colgroup>
+                        <col style="width:4%;" />
+                        <col style="width:11%;" />
+                        <col style="width:20%;" />
+                        <col style="width:9%;" />
+                        <col style="width:5%;" />
+                        <col style="width:6%;" />
+                        <col style="width:6%;" />
+                        <col style="width:6%;" />
+                        <col style="width:6%;" />
+                        <col style="width:11%;" />
+                        <col style="width:16%;" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Sr. No.</th>
+                            <th rowspan="2">Location</th>
+                            <th rowspan="2">Window Description</th>
+                            <th rowspan="2">Glass</th>
+                            <th rowspan="2">QTY</th>
+                            <th colspan="2">Width (mm)</th>
+                            <th colspan="2">Height (mm)</th>
+                            <th rowspan="2">Area (Sq.Ft) Charge</th>
+                            <th rowspan="2">Amount</th>
+                        </tr>
+                        <tr>
+                            <th>W1 / W2 / W3</th>
+                            <th>Value</th>
+                            <th>H1 / H2 / H3</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < categoryItems.Count; index++)
                         {
-                            var item = items[index];
+                            var item = categoryItems[index];
                             var itemName = string.IsNullOrWhiteSpace(item.Item) ? item.ItemName : item.Item;
-                            var category = string.IsNullOrWhiteSpace(item.Category) ? item.RequirementType : item.Category;
                             var description = string.Join(" / ", new[] { itemName, item.Types, item.Topology }
                                 .Where(value => !string.IsNullOrWhiteSpace(value)));
                             var quantity = string.IsNullOrWhiteSpace(item.Quantity) ? "1" : item.Quantity;
+                            var amtRaw = !string.IsNullOrWhiteSpace(item.Amount) ? item.Amount : item.Budget;
+                            var widths = Dimensions(("W1", item.W1), ("W2", item.W2), ("W3", item.W3));
+                            var heights = Dimensions(("H1", item.H1), ("H2", item.H2), ("H3", item.H3));
+
                             <tr>
                                 <td>@(index + 1)</td>
                                 <td>@(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location)</td>
-                                <td>
+                                <td style="text-align:left;padding:6px 10px;">
                                     <div class="item-description">@(string.IsNullOrWhiteSpace(description) ? item.Title : description)</div>
-                                    @if (!string.IsNullOrWhiteSpace(category))
+                                    @if (!string.IsNullOrWhiteSpace(item.Description) && item.Description != description && item.Description != item.Title)
                                     {
-                                        <div class="item-subline">@category</div>
+                                        <div class="item-subline">@item.Description</div>
                                     }
                                     @foreach (var imagePath in RequirementImagePaths(item))
                                     {
@@ -224,9 +330,6 @@
                                 <td>@(string.IsNullOrWhiteSpace(item.Glass) ? "—" : item.Glass)</td>
                                 <td>@quantity</td>
                                 <td>
-                                    @{
-                                        var widths = Dimensions(("W1", item.W1), ("W2", item.W2), ("W3", item.W3));
-                                    }
                                     @if (widths.Length == 0)
                                     {
                                         <span>—</span>
@@ -253,9 +356,6 @@
                                     }
                                 </td>
                                 <td>
-                                    @{
-                                        var heights = Dimensions(("H1", item.H1), ("H2", item.H2), ("H3", item.H3));
-                                    }
                                     @if (heights.Length == 0)
                                     {
                                         <span>—</span>
@@ -282,32 +382,242 @@
                                     }
                                 </td>
                                 <td>@(string.IsNullOrWhiteSpace(item.AreaCharge) ? "—" : item.AreaCharge)</td>
-                                <td class="amount-cell">@Currency(item.Amount)</td>
+                                <td class="amount-cell">@(string.IsNullOrWhiteSpace(amtRaw) ? "—" : Currency(amtRaw))</td>
                             </tr>
                         }
-                        @if (hasAreaTotal || hasAmountTotal)
-                        {
-                            <tr class="total-row">
-                                <td class="total-label" colspan="9">Total</td>
-                                <td>@(hasAreaTotal ? totalArea.ToString("N2", culture) : "—")</td>
-                                <td class="amount-cell">@(hasAmountTotal ? totalAmount.ToString("C2", culture) : "—")</td>
-                            </tr>
+                        @{
+                            var catAreaSum = categoryItems.Sum(item => ParseNumber(item.AreaCharge) ?? 0m);
+                            var catAmtSum = categoryItems.Sum(item => ParseNumber(!string.IsNullOrWhiteSpace(item.Amount) ? item.Amount : item.Budget) ?? 0m);
+                            var catQtySum = categoryItems.Sum(item => decimal.TryParse(item.Quantity, out var q) ? q : 1);
                         }
-                    }
-                </tbody>
-            </table>
-        </div>
+                        <tr class="total-row">
+                            <td class="total-label" colspan="4">Category Total:</td>
+                            <td>@catQtySum</td>
+                            <td colspan="4"></td>
+                            <td>@(catAreaSum > 0 ? catAreaSum.ToString("N2", culture) : "—")</td>
+                            <td class="amount-cell">@(catAmtSum > 0 ? catAmtSum.ToString("C2", culture) : "—")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-        @if (notes.Count > 0)
-        {
-            <section class="notes">
-                <strong>Remarks</strong>
-                @foreach (var note in notes)
-                {
-                    <div>@note</div>
-                }
+            @{
+                var catNotes = categoryItems.Select(item => item.Remarks)
+                    .Where(note => !string.IsNullOrWhiteSpace(note))
+                    .Distinct()
+                    .ToList();
+            }
+            @if (catNotes.Count > 0)
+            {
+                <section class="notes" style="margin-top:14px;">
+                    <strong>Remarks</strong>
+                    @foreach (var note in catNotes)
+                    {
+                        <div>@note</div>
+                    }
+                </section>
+            }
+        </main>
+    }
+    else
+    {
+        <!-- ========================================================================= -->
+        <!-- FULL PAGE VIEW: EXACT ORIGINAL TABLE LAYOUT (AS IN SCREENSHOT)            -->
+        <!-- ========================================================================= -->
+        <main class="sheet">
+            <header class="document-header">
+                <div class="document-brand">
+                    <div class="brand-mark">CRM</div>
+                    <div>
+                        <h1>Requirement Specification</h1>
+                        <p>Windows &amp; Doors</p>
+                    </div>
+                </div>
+                <div class="document-title">REQUIREMENT DETAILS</div>
+            </header>
+
+            <section class="client-info">
+                <div>
+                    <span class="eyebrow">Client</span>
+                    <strong>@Model.LeadName</strong>
+                    <p>@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "—" : Model.CompanyName)</p>
+                </div>
+                <div>
+                    <span class="eyebrow">Contact / Address</span>
+                    <p>Mobile: @(string.IsNullOrWhiteSpace(Model.MobileNumber) ? "—" : Model.MobileNumber)</p>
+                    <p>Email: @(string.IsNullOrWhiteSpace(Model.Email) ? "—" : Model.Email)</p>
+                    <p>Address: @(string.IsNullOrWhiteSpace(Model.Location) ? "—" : Model.Location)</p>
+                </div>
             </section>
-        }
-    </main>
+
+            <div class="requirement-meta">
+                <span>Lead ID: @Model.LeadId</span>
+                <span>Printed: @printedDate</span>
+            </div>
+
+            <div class="table-scroll">
+                <table class="full-page-table">
+                    <colgroup>
+                        <col style="width:4%;" />
+                        <col style="width:11%;" />
+                        <col style="width:18%;" />
+                        <col style="width:9%;" />
+                        <col style="width:5%;" />
+                        <col style="width:6%;" />
+                        <col style="width:6%;" />
+                        <col style="width:6%;" />
+                        <col style="width:6%;" />
+                        <col style="width:12%;" />
+                        <col style="width:17%;" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Sr. No.</th>
+                            <th rowspan="2">Location</th>
+                            <th rowspan="2">Window Description</th>
+                            <th rowspan="2">Glass</th>
+                            <th rowspan="2">QTY</th>
+                            <th colspan="2">Width (mm)</th>
+                            <th colspan="2">Height (mm)</th>
+                            <th rowspan="2">Area (Sq.Ft) Charge</th>
+                            <th rowspan="2">Amount</th>
+                        </tr>
+                        <tr>
+                            <th>W1 / W2 / W3</th>
+                            <th>Value</th>
+                            <th>H1 / H2 / H3</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (items.Count == 0)
+                        {
+                            <tr><td class="empty-row" colspan="11">No saved requirements.</td></tr>
+                        }
+                        else
+                        {
+                            @for (var index = 0; index < items.Count; index++)
+                            {
+                                var item = items[index];
+                                var itemName = string.IsNullOrWhiteSpace(item.Item) ? item.ItemName : item.Item;
+                                var category = string.IsNullOrWhiteSpace(item.Category) ? item.RequirementType : item.Category;
+                                var description = string.Join(" / ", new[] { itemName, item.Types, item.Topology }
+                                    .Where(value => !string.IsNullOrWhiteSpace(value)));
+                                var quantity = string.IsNullOrWhiteSpace(item.Quantity) ? "1" : item.Quantity;
+                                var amtRaw = !string.IsNullOrWhiteSpace(item.Amount) ? item.Amount : item.Budget;
+                                <tr>
+                                    <td>@(index + 1)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Location) ? "—" : item.Location)</td>
+                                    <td>
+                                        <div class="item-description">@(string.IsNullOrWhiteSpace(description) ? item.Title : description)</div>
+                                        @if (!string.IsNullOrWhiteSpace(category))
+                                        {
+                                            <div class="item-subline">@category</div>
+                                        }
+                                        @foreach (var imagePath in RequirementImagePaths(item))
+                                        {
+                                            <img class="requirement-image" src="@imagePath" alt="Requirement item" />
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Glass) ? "—" : item.Glass)</td>
+                                    <td>@quantity</td>
+                                    <td>
+                                        @{
+                                            var widths = Dimensions(("W1", item.W1), ("W2", item.W2), ("W3", item.W3));
+                                        }
+                                        @if (widths.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var width in widths)
+                                            {
+                                                <div>@width.Label</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (widths.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var width in widths)
+                                            {
+                                                <div>@width.Value</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @{
+                                            var heights = Dimensions(("H1", item.H1), ("H2", item.H2), ("H3", item.H3));
+                                        }
+                                        @if (heights.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var height in heights)
+                                            {
+                                                <div>@height.Label</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (heights.Length == 0)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var height in heights)
+                                            {
+                                                <div>@height.Value</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.AreaCharge) ? "—" : item.AreaCharge)</td>
+                                    <td class="amount-cell">@(string.IsNullOrWhiteSpace(amtRaw) ? "—" : Currency(amtRaw))</td>
+                                </tr>
+                            }
+                            @if (hasAreaTotal || hasAmountTotal)
+                            {
+                                <tr class="total-row">
+                                    <td class="total-label" colspan="9">Total</td>
+                                    <td>@(hasAreaTotal ? totalArea.ToString("N2", culture) : "—")</td>
+                                    <td class="amount-cell">@(hasAmountTotal ? totalAmount.ToString("C2", culture) : "—")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (notes.Count > 0)
+            {
+                <section class="notes">
+                    <strong>Remarks</strong>
+                    @foreach (var note in notes)
+                    {
+                        <div>@note</div>
+                    }
+                </section>
+            }
+        </main>
+    }
+
+    @if (autoPrint)
+    {
+        <script>
+            window.addEventListener('DOMContentLoaded', function () {
+                setTimeout(function () {
+                    window.print();
+                }, 350);
+            });
+        </script>
+    }
 </body>
 </html>

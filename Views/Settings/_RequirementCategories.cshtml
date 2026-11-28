@@ -1,26 +1,32 @@
 @model CrmLeadManagement.Models.SettingsViewModel
 
-<div class="panel" id="requirement-categories" style="margin-bottom:22px;">
+<div class="panel" id="requirement-types" style="margin-bottom:22px;">
+    <div id="requirement-categories"></div>
     <div class="panel-header">
         <div>
-            <h2><i class="bi bi-card-checklist" style="color:var(--brand-600);margin-right:6px;"></i> Requirement Categories</h2>
-            <div class="hint">Manage the category options available when adding lead requirements</div>
+            <h2><i class="bi bi-card-checklist" style="color:var(--brand-600);margin-right:6px;"></i> Requirement Types</h2>
+            <div class="hint">Dynamic requirement types managed here and used in Lead Requirements (e.g., Material, Service, Product, Price Quote, Demo, Other)</div>
         </div>
     </div>
     <div class="panel-body">
-        <form method="post" asp-controller="Settings" asp-action="AddRequirementCategory" style="display:flex;gap:10px;margin-bottom:18px;">
-            <input type="text" name="NewCategory" placeholder="e.g., Window, Door, Service..." required
+        <form method="post" asp-controller="Settings" asp-action="AddRequirementType" style="display:flex;gap:10px;margin-bottom:18px;">
+            <input type="text" name="NewType" placeholder="e.g., Material, Service, Product, Consulting..." required
                    style="flex:1;border:1px solid var(--ink-300);border-radius:8px;padding:9px 12px;font-size:13.5px;" />
             <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add</button>
         </form>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            @foreach (var category in Model.RequirementCategories)
+            @{
+                var displayList = (Model.RequirementTypes != null && Model.RequirementTypes.Count > 0)
+                    ? Model.RequirementTypes
+                    : Model.RequirementCategories;
+            }
+            @foreach (var type in displayList)
             {
                 <div style="display:flex;align-items:center;gap:8px;background:var(--ink-100);border-radius:20px;padding:6px 8px 6px 14px;font-size:13px;font-weight:600;color:var(--ink-700);">
-                    <span>@category</span>
-                    <form method="post" asp-controller="Settings" asp-action="RemoveRequirementCategory" style="display:inline;">
-                        <input type="hidden" name="category" value="@category" />
+                    <span>@type</span>
+                    <form method="post" asp-controller="Settings" asp-action="RemoveRequirementType" style="display:inline;">
+                        <input type="hidden" name="type" value="@type" />
                         <button type="submit" class="icon-btn" style="width:24px;height:24px;border:none;background:transparent;color:var(--ink-500);" title="Remove">
                             <i class="bi bi-x-lg" style="font-size:11px;"></i>
                         </button>
