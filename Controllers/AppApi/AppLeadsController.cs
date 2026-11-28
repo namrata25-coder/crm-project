@@ -564,29 +564,44 @@ public class AppLeadsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetLead(string id)
     {
-        if (string.Equals(id, "stats", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(id, "statistics", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(id, "count", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(id, "counts", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            return await GetLeadStats(null);
+            if (string.Equals(id, "stats", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(id, "statistics", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(id, "count", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(id, "counts", StringComparison.OrdinalIgnoreCase))
+            {
+                return await GetLeadStats(null);
+            }
+
+            var (currentUser, role, isSalesExec) = await IdentifyRequestUserAsync();
+
+            var lead = await FindLeadAsync(id);
+            if (lead == null)
+            {
+                return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+            }
+
+            if (isSalesExec && !IsLeadAssignedToUser(lead, currentUser))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    AppApiErrorResponse.Fail("You do not have permission to view this lead."));
+            }
+
+            var accept = Request.Headers.Accept.ToString();
+            if (accept.Contains("multipart/mixed", StringComparison.OrdinalIgnoreCase))
+            {
+                return await WriteLeadMultipartResponseAsync(lead);
+            }
+
+            return Ok(lead);
         }
-
-        var (currentUser, role, isSalesExec) = await IdentifyRequestUserAsync();
-
-        var lead = await FindLeadAsync(id);
-        if (lead == null)
+        catch (Exception ex)
         {
-            return NotFound(new ApiError { Message = $"Lead '{id}' not found." });
+            _logger.LogError(ex, "Failed to retrieve lead {LeadId} via App API.", id);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                AppApiErrorResponse.Fail("An error occurred while retrieving lead details."));
         }
-
-        if (isSalesExec && !IsLeadAssignedToUser(lead, currentUser))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                AppApiErrorResponse.Fail("You do not have permission to view this lead."));
-        }
-
-        return await WriteLeadMultipartResponseAsync(lead);
     }
 
     private async Task<IActionResult> WriteLeadMultipartResponseAsync(Lead lead)
@@ -605,32 +620,43 @@ public class AppLeadsController : ControllerBase
         };
         multipart.Add(leadContent);
 
-        foreach (var requirement in lead.Requirements.OrderBy(requirement => requirement.Id))
+        if (lead.Requirements != null)
         {
-            var imagePaths = requirement.ImagePaths;
-            for (var index = 0; index < imagePaths.Count; index++)
+            foreach (var requirement in lead.Requirements.OrderBy(requirement => requirement.Id))
             {
-                var imagePath = imagePaths[index];
-                var fileName = Path.GetFileName(imagePath);
-                if (string.IsNullOrWhiteSpace(fileName) ||
-                    !string.Equals(imagePath, $"/uploads/requirements/{fileName}", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidDataException(
-                        $"Requirement '{requirement.Id}' contains an invalid image path.");
-                }
+                var imagePaths = requirement.ImagePaths;
+                if (imagePaths == null) continue;
 
-                var physicalPath = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements", fileName);
-                var fileStream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                var imageContent = new StreamContent(fileStream);
-                imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-                    GetRequirementImageContentType(fileName));
-                imageContent.Headers.ContentDisposition =
-                    new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
+                for (var index = 0; index < imagePaths.Count; index++)
+                {
+                    var imagePath = imagePaths[index];
+                    if (string.IsNullOrWhiteSpace(imagePath)) continue;
+
+                    var fileName = Path.GetFileName(imagePath);
+                    if (string.IsNullOrWhiteSpace(fileName)) continue;
+
+                    var physicalPath = Path.Combine(FinanceAttachmentService.UploadsPath, "requirements", fileName);
+                    if (!System.IO.File.Exists(physicalPath)) continue;
+
+                    try
                     {
-                        Name = $"requirement_{requirement.Id}_image_{index + 1}",
-                        FileName = fileName
-                    };
-                multipart.Add(imageContent);
+                        var fileStream = new System.IO.FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        var imageContent = new StreamContent(fileStream);
+                        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                            GetRequirementImageContentType(fileName));
+                        imageContent.Headers.ContentDisposition =
+                            new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
+                            {
+                                Name = $"requirement_{requirement.Id}_image_{index + 1}",
+                                FileName = fileName
+                            };
+                        multipart.Add(imageContent);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to read image {FileName} for requirement {ReqId}", fileName, requirement.Id);
+                    }
+                }
             }
         }
 
